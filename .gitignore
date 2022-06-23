@@ -1,0 +1,6 @@
+.history/
+.vscode/
+.cache/
+build/
+
+core
