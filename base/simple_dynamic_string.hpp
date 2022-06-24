@@ -106,7 +106,16 @@ namespace base
         }
 
         /// 追加内容，从指定内存地址读取指定长度的数据追加到当前 SDS 后面
-        void Append(const char *target, size_t length);
+        void Append(const char *target, size_t length)
+        {
+            if (Avail() < length) {
+                MakeRoomFor(length);
+            }
+            for(int i = 0; i < length; i++) {
+                buffer_[length_ - free_] = target[i];
+                free_--;
+            }
+        }
 
         /// 追加内容，追加 C-Style 字符串到当前 SDS 后面
         void Append(const char *target);
@@ -193,8 +202,8 @@ namespace base
         }
 
     private:
-        int64_t length_ = 0;
-        int64_t free_ = 0;
+        uint64_t length_ = 0;
+        uint64_t free_ = 0;
         std::unique_ptr<char[]> buffer_ = nullptr;
     };
 
