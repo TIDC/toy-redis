@@ -21,31 +21,20 @@ namespace base
         SimpleDynamicString(const char *init, size_t init_length)
             : length_(init_length)
         {
-            assert(init_length >= 0);
-
-            if (length_ > 0)
-            {
-                // 分配的内存比指定字符串多一个字节，存放 '\n'
-                buffer_ = std::make_unique<char[]>(length_ + 1);
-                assert(buffer_ != nullptr && "Out Of Memory");
-
-                if (init != nullptr)
-                {
-                    std::copy_n(init, length_, buffer_.get());
-                    buffer_[length_] = '\0';
-                }
-                else
-                {
-                    std::fill_n(buffer_.get(), length_, '\0');
-                }
-            }
+            CreateFrom(init, init_length);
         }
 
         /// 从 C-Style 字符串构造 SDS
         SimpleDynamicString(const char *init)
         {
             auto init_length = (init == nullptr) ? 0 : std::strlen(init);
-            SimpleDynamicString(init, init_length);
+            CreateFrom(init, init_length);
+        }
+
+        /// 从 string_view 构造 SDS
+        SimpleDynamicString(std::string_view init)
+        {
+            CreateFrom(init.data(), init.length());
         }
 
         /// 复制构造
@@ -63,12 +52,14 @@ namespace base
             other.buffer_ = nullptr;
         }
 
+        /// 复制赋值
         SimpleDynamicString &operator=(const SimpleDynamicString &other)
         {
             CopyFrom(other);
             return *this;
         }
 
+        /// 移动赋值
         SimpleDynamicString &operator=(SimpleDynamicString &&other)
         {
             Swap(other);
@@ -117,7 +108,7 @@ namespace base
         /// 追加内容，从指定内存地址读取指定长度的数据追加到当前 SDS 后面
         void Append(const char *target, size_t length);
 
-        /// 追加内容，追加 C-Styley 字符串到当前 SDS 后面
+        /// 追加内容，追加 C-Style 字符串到当前 SDS 后面
         void Append(const char *target);
 
         /// 追加内容，追加 string_view 的内容到当前 SDS 后面
@@ -144,6 +135,32 @@ namespace base
         std::vector<std::string_view> Split(std::string_view separator);
 
     private:
+        /// 初始化的实现
+        void CreateFrom(const char *init, size_t init_length)
+        {
+            assert(length_ >= 0);
+
+            length_ = init_length;
+            free_ = 0;
+
+            if (length_ > 0)
+            {
+                // 分配的内存比指定字符串多一个字节，存放 '\n'
+                buffer_ = std::make_unique<char[]>(length_ + 1);
+                assert(buffer_ != nullptr && "Out Of Memory");
+
+                if (init != nullptr)
+                {
+                    std::copy_n(init, length_, buffer_.get());
+                    buffer_[length_] = '\0';
+                }
+                else
+                {
+                    std::fill_n(buffer_.get(), length_, '\0');
+                }
+            }
+        }
+
         /// 复制构造和赋值的实现函数
         void CopyFrom(const SimpleDynamicString &other)
         {
