@@ -44,7 +44,7 @@ namespace base
         }
 
         /// 移动构造
-        SimpleDynamicString(SimpleDynamicString &&other)
+        SimpleDynamicString(SimpleDynamicString &&other) noexcept
         {
             Swap(other);
             other.length_ = 0;
@@ -60,7 +60,7 @@ namespace base
         }
 
         /// 移动赋值
-        SimpleDynamicString &operator=(SimpleDynamicString &&other)
+        SimpleDynamicString &operator=(SimpleDynamicString &&other) noexcept
         {
             Swap(other);
             other.length_ = 0;
@@ -69,14 +69,20 @@ namespace base
             return *this;
         }
 
+        /// 获取 SDS 的数据指针
+        const char *Data() const
+        {
+            return buffer_.get();
+        }
+
         /// 获取 SDS 的长度
-        size_t Length()
+        size_t Length() const
         {
             return length_;
         }
 
         /// 剩余未使用的容量
-        size_t Avail()
+        size_t Avail() const
         {
             return free_;
         }
@@ -108,10 +114,12 @@ namespace base
         /// 追加内容，从指定内存地址读取指定长度的数据追加到当前 SDS 后面
         void Append(const char *target, size_t length)
         {
-            if (Avail() < length) {
+            if (Avail() < length)
+            {
                 MakeRoomFor(length);
             }
-            for(int i = 0; i < length; i++) {
+            for (int i = 0; i < length; i++)
+            {
                 buffer_[length_ - free_] = target[i];
                 free_--;
             }
@@ -141,7 +149,7 @@ namespace base
         void ToUpper();
 
         /// 分割
-        std::vector<std::string_view> Split(std::string_view separator);
+        std::vector<std::string_view> Split(std::string_view separator) const;
 
     private:
         /// 初始化的实现
@@ -194,7 +202,7 @@ namespace base
         }
 
         /// 交换两个 SDS 的内容
-        void Swap(SimpleDynamicString &other)
+        void Swap(SimpleDynamicString &other) noexcept
         {
             std::swap(length_, other.length_);
             std::swap(free_, other.free_);
@@ -206,5 +214,16 @@ namespace base
         uint64_t free_ = 0;
         std::unique_ptr<char[]> buffer_ = nullptr;
     };
+
+    /// 比较两个 SDS 的内容是否相同
+    inline bool operator==(const SimpleDynamicString &lhs, const SimpleDynamicString &rhs)
+    {
+        if (lhs.Length() == rhs.Length())
+        {
+            return std::memcmp(lhs.Data(), rhs.Data(), lhs.Length()) == 0;
+        }
+
+        return false;
+    }
 
 } // namespace base
