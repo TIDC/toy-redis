@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include(cmake/add_test.cmake)
+enable_testing()
+include(cmake/create_test.cmake)
 add_subdirectory(tests)
 
 add_executable(

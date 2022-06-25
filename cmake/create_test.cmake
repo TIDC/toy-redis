@@ -3,8 +3,8 @@
 # @param file_list 需要编译的 .cpp 文件，长度可变
 #
 # @example 创一个 hello world 测试程序:
-#     add_test(TEST_hello hello_impl.cpp main.cpp)
-function(add_test target_name file_list)
+#     create_test(TEST_hello hello_impl.cpp main.cpp)
+function(create_test target_name file_list)
     set(argv_index 2)
     list(LENGTH ARGV argv_len)
 
@@ -31,5 +31,10 @@ function(add_test target_name file_list)
         -O2
         -g
         -ggdb
+    )
+
+    add_test(
+        NAME ${target_name}
+        COMMAND ${target_name}
     )
 endfunction()
