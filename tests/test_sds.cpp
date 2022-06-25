@@ -7,12 +7,12 @@
 
 int testSdsAppendSpecifyTheLength()
 {
-    std::string_view hello = "Hello Redis++";
-    base::SimpleDynamicString sds(hello);
-    uint64_t oldSDS = sds.Length();
-    sds.Append(hello.data(), hello.length());
-    assert(sds.Length() == oldSDS + hello.length());
-    std::cout << sds.Data() << std::endl;
+    using namespace base::literals;
+    base::SimpleDynamicString sds("Hello ");
+    std::string_view hello = "Redis+++";
+    sds.Append(hello.data(), 7);
+    assert(sds == "Hello Redis++"_sds);
+    std::cout << "testSdsAppendSpecifyTheLength pass " << sds.Data() << std::endl;
     return 0;
 }
 
@@ -22,11 +22,31 @@ int testSdsAppendStringOfCStyle()
     
     base::SimpleDynamicString sds("Hello ");
     sds.Append("Redis++");
-    assert(strcmp(sds.Data(), "Hello Redis++") == 0);
-    std::cout << sds.Data() << std::endl;
-
     assert(sds == "Hello Redis++"_sds);
+    std::cout << "testSdsAppendStringOfCStyle pass " << sds.Data() << std::endl;
 
+    return 0;
+}
+
+int testSdsAppendString_view()
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("Hello ");
+    std::string_view  sv = "redis++";
+    sds.Append(sv);
+    assert(sds == "Hello redis++"_sds);
+    std::cout << "testSdsAppendString_view pass " << sds.Data() << std::endl;
+    return 0;
+}
+
+int testSdsAppendSds()
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("Hello ");
+    base::SimpleDynamicString redisPlus("redis++");
+    sds.Append(redisPlus);
+    assert(sds == "Hello redis++"_sds);
+    std::cout << "testSdsAppendSds pass " << sds.Data() << std::endl;
     return 0;
 }
 
@@ -39,5 +59,7 @@ int main(int argc, const char *args[])
     std::cout << sds.Length() << std::endl;
     testSdsAppendSpecifyTheLength();
     testSdsAppendStringOfCStyle();
+    testSdsAppendString_view();
+    testSdsAppendSds();
     return 0;
 }

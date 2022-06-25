@@ -130,22 +130,20 @@ namespace base
         void Append(const char *target)
         {
             size_t targetLength = strlen(target);
-            if (Avail() < targetLength)
-            {
-                MakeRoomFor(targetLength);
-            }
-            for (uint64_t index = 0; target[index] != '\0'; index++)
-            {
-                buffer_[length_++] = target[index];
-            }
-            buffer_[length_] = '\0';
+            Append(target, targetLength);
         }
 
         /// 追加内容，追加 string_view 的内容到当前 SDS 后面
-        void Append(std::string_view target);
+        void Append(std::string_view target)
+        {
+            Append(target.data());
+        }
 
         /// 追加内容，将另一个 SDS 追加到当前 SDS 后面
-        void Append(const SimpleDynamicString &other);
+        void Append(const SimpleDynamicString &other)
+        {
+            Append(other.buffer_.get(), other.Length());
+        }
 
         /// 删除两端的指定字符
         /// TODO: 提供 string_view 版本
