@@ -26,14 +26,14 @@ namespace base
         }
 
         /// 从 C-Style 字符串构造 SDS
-        SimpleDynamicString(const char *init)
+        explicit SimpleDynamicString(const char *init)
         {
             auto init_length = (init == nullptr) ? 0 : std::strlen(init);
             CreateFrom(init, init_length);
         }
 
         /// 从 string_view 构造 SDS
-        SimpleDynamicString(std::string_view init)
+        explicit SimpleDynamicString(std::string_view init)
         {
             CreateFrom(init.data(), init.length());
         }
