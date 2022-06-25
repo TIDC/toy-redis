@@ -130,10 +130,12 @@ namespace base
         void Append(const char *target)
         {
             size_t targetLength = strlen(target);
-            if (Avail() < targetLength) {
+            if (Avail() < targetLength)
+            {
                 MakeRoomFor(targetLength);
             }
-            for (uint64_t index = 0; target[index] != '\0'; index++) {
+            for (uint64_t index = 0; target[index] != '\0'; index++)
+            {
                 buffer_[length_++] = target[index];
             }
             buffer_[length_] = '\0';
@@ -236,5 +238,16 @@ namespace base
 
         return false;
     }
+
+    namespace literals
+    {
+
+        /// 字面量字符串转 SDS
+        inline SimpleDynamicString operator""_sds(const char *str, std::size_t len)
+        {
+            return {str, len};
+        }
+
+    } // namespace literals
 
 } // namespace base
