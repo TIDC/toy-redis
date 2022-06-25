@@ -122,6 +122,7 @@ namespace base
             for (int i = 0; i < length; i++)
             {
                 buffer_[length_++] = target[i];
+                free_--;
             }
             buffer_[length_] = '\0';
         }
@@ -151,7 +152,22 @@ namespace base
 
         /// 保留指定区间内的内容
         /// TODO: 提供 string_view 版本
-        void Range(int64_t start, int64_t end);
+        void Range(uint64_t start, uint64_t end)
+        {
+            assert(Length() >= end);
+            assert(start >= 0);
+            uint64_t freeLength = length_ - end + start;
+            if (start != 0) {
+                uint64_t current = 0;
+                for (;start < end;start++) {
+                    buffer_[current++] = buffer_[start];
+                }
+                end = current;
+            }
+            length_ = length_ - freeLength;
+            free_ = free_ + freeLength;
+            buffer_[end] = '\0';
+        }
 
         /// 全转小写
         void ToLower();

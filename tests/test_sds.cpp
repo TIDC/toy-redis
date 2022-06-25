@@ -50,6 +50,16 @@ int testSdsAppendSds()
     return 0;
 }
 
+int testSdsRange()
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("Hello redis++");
+    sds.Range(6, sds.Length());
+    assert(sds == "redis++"_sds);
+    std::cout << "testSdsRange pass " << sds.Data() << std::endl;
+    return 0;
+}
+
 int main(int argc, const char *args[])
 {
     std::string_view hello = "Hello World";
@@ -61,5 +71,6 @@ int main(int argc, const char *args[])
     testSdsAppendStringOfCStyle();
     testSdsAppendString_view();
     testSdsAppendSds();
+    testSdsRange();
     return 0;
 }
