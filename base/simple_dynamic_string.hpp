@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -126,7 +127,17 @@ namespace base
         }
 
         /// 追加内容，追加 C-Style 字符串到当前 SDS 后面
-        void Append(const char *target);
+        void Append(const char *target)
+        {
+            size_t targetLength = strlen(target);
+            if (Avail() < targetLength) {
+                MakeRoomFor(targetLength);
+            }
+            for (uint64_t index = 0; target[index] != '\0'; index++) {
+                buffer_[length_++] = target[index];
+            }
+            buffer_[length_] = '\0';
+        }
 
         /// 追加内容，追加 string_view 的内容到当前 SDS 后面
         void Append(std::string_view target);
