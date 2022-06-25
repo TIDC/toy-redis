@@ -120,9 +120,9 @@ namespace base
             }
             for (int i = 0; i < length; i++)
             {
-                buffer_[length_ - free_] = target[i];
-                free_--;
+                buffer_[length_++] = target[i];
             }
+            buffer_[length_] = '\0';
         }
 
         /// 追加内容，追加 C-Style 字符串到当前 SDS 后面
