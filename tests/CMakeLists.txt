@@ -15,3 +15,9 @@ create_test(
     FILES test_sds.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_ref_optional
+    FILES test_reference_optional.cpp
+    LIBS gtest_main
+)
