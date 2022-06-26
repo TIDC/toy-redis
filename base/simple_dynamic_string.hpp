@@ -185,6 +185,14 @@ namespace base
             }
         }
 
+        void Trim2(const char c)
+        {
+            auto view = std::string_view(buffer_.get());
+            int start = view.find_first_not_of(c);
+            int end = view.find_last_not_of(c) + 1;
+            Range(start, end);
+        }
+
         /// 保留指定区间内的内容
         /// TODO: 提供 string_view 版本
         void Range(uint64_t start, uint64_t end)
