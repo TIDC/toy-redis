@@ -153,28 +153,33 @@ namespace base
             size_t lengthOfC = strlen(c);
             assert(length_ > lengthOfC);
             size_t begin = 0;
-            for (; begin < lengthOfC; begin++) {
+            for (; begin < lengthOfC; begin++)
+            {
                 if (c[begin] != buffer_[begin])
                 {
                     break;
                 }
             }
             size_t end = lengthOfC - 1;
-            for (; end >= 0; end--) {
+            for (; end >= 0; end--)
+            {
                 if (c[end] != buffer_[end])
                 {
                     break;
                 }
             }
-            if (begin == lengthOfC && end > lengthOfC) {
+            if (begin == lengthOfC && end > lengthOfC)
+            {
                 Range(begin, Length() - lengthOfC);
                 return;
             }
-            if (begin == lengthOfC) {
+            if (begin == lengthOfC)
+            {
                 Range(begin, Length());
                 return;
             }
-            if (end > lengthOfC) {
+            if (end > lengthOfC)
+            {
                 Range(0, Length() - lengthOfC);
                 return;
             }
@@ -187,9 +192,11 @@ namespace base
             assert(Length() >= end);
             assert(start >= 0);
             uint64_t freeLength = length_ - end + start;
-            if (start != 0) {
+            if (start != 0)
+            {
                 uint64_t current = 0;
-                for (;start < end;start++) {
+                for (; start < end; start++)
+                {
                     buffer_[current++] = buffer_[start];
                 }
                 end = current;
@@ -200,10 +207,18 @@ namespace base
         }
 
         /// 全转小写
-        void ToLower();
+        void ToLower()
+        {
+            std::transform(&buffer_[0], &buffer_[Length()], &buffer_[0],
+                           [](unsigned char c) { return std::tolower(c); });
+        }
 
         /// 全转大写
-        void ToUpper();
+        void ToUpper()
+        {
+            std::transform(&buffer_[0], &buffer_[Length()], &buffer_[0],
+                           [](unsigned char c) { return std::toupper(c); });
+        }
 
         /// 分割
         std::vector<std::string_view> Split(std::string_view separator) const;

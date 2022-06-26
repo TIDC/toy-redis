@@ -64,3 +64,23 @@ TEST(SDS, SdsTrim)
     ASSERT_EQ(sds == "Hello redis++"_sds, true);
     std::cout << "Trim pass " << sds.Data() << std::endl;
 }
+
+TEST(SDS, SdsToLower)
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("HELLO");
+    sds.ToLower();
+    std::cout << sds.Data() << std::endl;
+    ASSERT_EQ(sds == "hello"_sds, true);
+    std::cout << "ToLower pass " << sds.Data() << std::endl;
+}
+
+TEST(SDS, SdsToUpper)
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("hello");
+    sds.ToUpper();
+    std::cout << sds.Data() << std::endl;
+    ASSERT_EQ(sds == "HELLO"_sds, true);
+    std::cout << "ToUpper pass " << sds.Data() << std::endl;
+}
