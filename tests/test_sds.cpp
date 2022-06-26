@@ -54,3 +54,13 @@ TEST(SDS, SdsRange)
     ASSERT_EQ(sds == "redis++"_sds, true);
     std::cout << "testSdsRange pass " << sds.Data() << std::endl;
 }
+
+TEST(SDS, SdsTrim)
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("rrHello redis++rr");
+    sds.Trim("r");
+    std::cout << sds.Data() << std::endl;
+    ASSERT_EQ(sds == "Hello redis++"_sds, true);
+    std::cout << "Trim pass " << sds.Data() << std::endl;
+}

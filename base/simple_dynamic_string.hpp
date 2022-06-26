@@ -148,7 +148,37 @@ namespace base
 
         /// 删除两端的指定字符
         /// TODO: 提供 string_view 版本
-        void Trim(const char *c);
+        void Trim(const char *c)
+        {
+            size_t lengthOfC = strlen(c);
+            assert(length_ > lengthOfC);
+            size_t begin = 0;
+            for (; begin < lengthOfC; begin++) {
+                if (c[begin] != buffer_[begin])
+                {
+                    break;
+                }
+            }
+            size_t end = lengthOfC - 1;
+            for (; end >= 0; end--) {
+                if (c[end] != buffer_[end])
+                {
+                    break;
+                }
+            }
+            if (begin == lengthOfC && end > lengthOfC) {
+                Range(begin, Length() - lengthOfC);
+                return;
+            }
+            if (begin == lengthOfC) {
+                Range(begin, Length());
+                return;
+            }
+            if (end > lengthOfC) {
+                Range(0, Length() - lengthOfC);
+                return;
+            }
+        }
 
         /// 保留指定区间内的内容
         /// TODO: 提供 string_view 版本
