@@ -218,14 +218,14 @@ namespace base
         void ToLower()
         {
             std::transform(&buffer_[0], &buffer_[Length()], &buffer_[0],
-                           [](unsigned char c) { return std::tolower(c); });
+                            [](unsigned char c) { return std::tolower(c); });
         }
 
         /// 全转大写
         void ToUpper()
         {
             std::transform(&buffer_[0], &buffer_[Length()], &buffer_[0],
-                           [](unsigned char c) { return std::toupper(c); });
+                            [](unsigned char c) { return std::toupper(c); });
         }
 
         /// 分割

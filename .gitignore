@@ -2,5 +2,6 @@
 .vscode/
 .cache/
 build/
+zcf_test.sh
 
 core
