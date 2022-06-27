@@ -59,7 +59,7 @@ TEST(SDS, SdsTrim)
 {
     using namespace base::literals;
     base::SimpleDynamicString sds("rrHello redis++rr");
-    sds.Trim("r");
+    sds.Trim("rr");
     std::cout << sds.Data() << std::endl;
     ASSERT_EQ(sds == "Hello redis++"_sds, true);
     std::cout << "Trim pass " << sds.Data() << std::endl;
@@ -93,4 +93,38 @@ TEST(SDS, SdsToUpper)
     std::cout << sds.Data() << std::endl;
     ASSERT_EQ(sds == "HELLO"_sds, true);
     std::cout << "ToUpper pass " << sds.Data() << std::endl;
+}
+
+TEST(SDS, SdsContains)
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("hello");
+    std::cout << sds.Contains("h") << std::endl;
+    ASSERT_EQ(sds.Contains("h"), true);
+    std::cout << "Contains pass!" << std::endl;
+}
+
+TEST(SDS, SdsIndexOf)
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("hello");
+    auto result = sds.IndexOf("ll");
+    std::cout << result << std::endl;
+    ASSERT_EQ(result == 2, true);
+    std::cout << "IndexOf pass!" << result << std::endl;
+}
+
+TEST(SDS, SdsSplit)
+{
+    using namespace base::literals;
+    base::SimpleDynamicString sds("helloaahiaagood");
+    auto result = sds.Split(std::string_view("aa"));
+
+    for (std::string_view n : result)
+    {
+        std::cout << n << ", ";
+    }
+
+    std::cout << " length: " << result.size() << std::endl;
+    ASSERT_EQ(result.size() == 3, true);
 }

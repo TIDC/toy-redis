@@ -119,7 +119,7 @@ namespace base
             {
                 MakeRoomFor(length);
             }
-            for (int i = 0; i < length; i++)
+            for (size_t i = 0; i < length; i++)
             {
                 buffer_[length_++] = target[i];
                 free_--;
@@ -218,18 +218,55 @@ namespace base
         void ToLower()
         {
             std::transform(&buffer_[0], &buffer_[Length()], &buffer_[0],
-                            [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) { return std::tolower(c); });
         }
 
         /// 全转大写
         void ToUpper()
         {
             std::transform(&buffer_[0], &buffer_[Length()], &buffer_[0],
-                            [](unsigned char c) { return std::toupper(c); });
+                           [](unsigned char c) { return std::toupper(c); });
         }
 
         /// 分割
-        std::vector<std::string_view> Split(std::string_view separator) const;
+        std::vector<std::string_view> Split(std::string_view separator) const
+        {
+            auto data = std::string_view(buffer_.get());
+            std::vector<std::string_view> result;
+
+            if (data.find(separator) == std::string_view::npos)
+            {
+                result.push_back(data);
+                return result;
+            }
+
+            int index = 0;
+            while (true)
+            {
+                auto indexOf = data.find(separator, index);
+                if (indexOf == std::string_view::npos)
+                {
+                    result.push_back(data.substr(index));
+                    break;
+                }
+                result.push_back(data.substr(index, indexOf - index));
+                index += (indexOf - index) + separator.length();
+            }
+            return result;
+        }
+
+        // 查找目标字符串是否存在，返回下标， 不存在返回 npos
+        std::string_view::size_type IndexOf(std::string_view target)
+        {
+            auto view = std::string_view(buffer_.get());
+            return view.find(target);
+        }
+
+        // 查找是否包含目标字符串
+        bool Contains(std::string_view target)
+        {
+            return IndexOf(target) != std::string_view::npos;
+        }
 
     private:
         /// 初始化的实现
