@@ -255,18 +255,18 @@ namespace base
             return result;
         }
 
-        // 查找目标字符串是否存在，返回下标， 不存在返回 npos
-        std::string_view::size_type IndexOf(std::string_view target)
-        {
-            auto view = std::string_view(buffer_.get());
-            return view.find(target);
-        }
+        // // 查找目标字符串是否存在，返回下标， 不存在返回 npos
+        // std::string_view::size_type IndexOf(std::string_view target)
+        // {
+        //     auto view = std::string_view(buffer_.get());
+        //     return view.find(target);
+        // }
 
-        // 查找是否包含目标字符串
-        bool Contains(std::string_view target)
-        {
-            return IndexOf(target) != std::string_view::npos;
-        }
+        // // 查找是否包含目标字符串
+        // bool Contains(std::string_view target)
+        // {
+        //     return IndexOf(target) != std::string_view::npos;
+        // }
 
     private:
         /// 初始化的实现
