@@ -21,3 +21,9 @@ create_test(
     FILES test_reference_optional.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_dictionary
+    FILES test_dictionary.cpp
+    LIBS gtest_main
+)
