@@ -18,8 +18,8 @@ cd build
 error_check
 cmake ..
 error_check
-make -j
+cpu=$(cat /proc/cpuinfo | grep processor | wc -l)
+make -j ${cpu}
 error_check
 ctest --verbose
 error_check
-
