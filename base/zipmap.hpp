@@ -15,17 +15,17 @@
 namespace base
 {
     // template <typename VT>
-    class Zipmap
+    class ZipMap
     {
 
     public:
-        Zipmap()
+        ZipMap()
         {
             // FIXME: 临时去除未使用警告
             ((void)&max_size_);
         };
 
-        ~Zipmap() = default;
+        ~ZipMap() = default;
 
     public:
         void Set(std::string_view key, std::string_view value)

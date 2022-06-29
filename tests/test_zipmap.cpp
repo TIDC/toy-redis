@@ -6,9 +6,9 @@
 #include <iostream>
 #include <string_view>
 
-TEST(SDS, Zipmap)
+TEST(SDS, ZipMap)
 {
-    base::Zipmap zmap;
+    base::ZipMap zmap;
     zmap.Set("hi\0", "this is hello hah!\0");
     zmap.Get();
     // FIXME: 字面量字符串不能直接比较
