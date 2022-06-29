@@ -142,9 +142,23 @@ namespace base
         }
 
         /// redis function: dictReplace
-        /// 替换字典中键为 key 的值成 value
-        template <typename VT>
-        bool Replace(const KeyType &key, VT &&value);
+        /// 替换字典中键为 key 的值成 value，如果 key 不在字典里就新增
+        /// 返回 true 代表新增键值对，返回 false 代表替换
+        template <typename KT, typename VT>
+        bool Replace(KT &&key, VT &&value)
+        {
+            if (Add(std::forward<KT>(key), std::forward<VT>(value)))
+            {
+                return true;
+            }
+
+            auto find_result = Find(key);
+            assert(find_result.has_value());
+
+            find_result->get().second = std::forward<VT>(value);
+
+            return false;
+        }
 
         /// redis function: dictReplace
         /// 删除键值对

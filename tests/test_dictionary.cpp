@@ -44,6 +44,27 @@ TEST(dict, AddAndFind)
     find_hello = dict.Find("hello");
     ASSERT_EQ(find_hello.has_value(), true);
     ASSERT_EQ(find_hello->get().second, 4096);
+}
 
+TEST(dict, Replace)
+{
+    base::Dictionary<std::string, int64_t> dict;
 
+    dict.Add("hello", 1024);
+    // Replace(k,v) 如果是新增返回就 true
+    ASSERT_EQ(dict.Replace("world", 2048), true);
+
+    ASSERT_EQ(dict.ElementSize(), 2);
+    ASSERT_EQ(dict.BucketSize(), 4);
+
+    auto find_hello = dict.Find("hello");
+    ASSERT_EQ(find_hello.has_value(), true);
+    ASSERT_EQ(find_hello->get().second, 1024);
+
+    // 替换返回 false
+    ASSERT_EQ(dict.Replace("hello", 2048), false);
+
+    find_hello = dict.Find("hello");
+    ASSERT_EQ(find_hello.has_value(), true);
+    ASSERT_EQ(find_hello->get().second, 2048);
 }
