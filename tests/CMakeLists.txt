@@ -21,3 +21,9 @@ create_test(
     FILES test_reference_optional.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_zipmap
+    FILES test_zipmap.cpp
+    LIBS gtest_main
+)

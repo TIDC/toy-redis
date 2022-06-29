@@ -1,16 +1,16 @@
 #pragma once
 
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdint.h>
 #include <string_view>
 
-#define HEADER_BLOCK_SIZE 4
-#define HEADER_SIZE 12
+#define HEADER_KEY_LENGTH_SIZE 4
+#define HEADER_VALUE_LENGTH_SIZE 4
+#define HEADER_HASH_CODE_SIZE 4
+#define HEADER_SIZE HEADER_KEY_LENGTH_SIZE + HEADER_VALUE_LENGTH_SIZE + HEADER_HASH_CODE_SIZE
 
 namespace base
 {
@@ -19,100 +19,92 @@ namespace base
     {
 
     public:
-        Zipmap() = delete;
+        Zipmap(){};
 
-        Zipmap(std::string_view key, std::string_view value)
+        ~Zipmap(){};
+
+    public:
+        void Set(std::string_view key, std::string_view value)
         {
-            std::uint32_t hashcode = std::hash<std::string_view>{}(key);
-            std::uint32_t key_length = key.length() + 1;
-            std::uint32_t value_length = value.length() + 1;
-            data = std::make_unique<void *>(malloc(HEADER_SIZE + key_length + value_length + 2));
-
-            *(std::uint32_t *)data.get() = hashcode;
-            *(std::uint32_t *)(data.get() + HEADER_BLOCK_SIZE) = key_length;
-            *(std::uint32_t *)(data.get() + HEADER_BLOCK_SIZE * 2) = value_length;
-
-            // std::copy_n(&hashcode, HEADER_BLOCK_SIZE, (std::uint32_t *)data.get());
-            // std::copy_n(&key_length, HEADER_BLOCK_SIZE, (std::uint32_t *)data.get() + HEADER_BLOCK_SIZE);
-            // std::copy_n(&value_length, HEADER_BLOCK_SIZE, (std::uint32_t *)data.get() + HEADER_BLOCK_SIZE * 2);
-
-            std::fill_n((char *)data.get() + HEADER_SIZE, key_length + value_length, '\0');
-
-            for (int i = HEADER_SIZE, j = 0; i < key_length + HEADER_SIZE; i++, j++)
-            {
-                // std::cout << "index " << i << " j " << j << std::endl;
-                ((char *)data.get())[i] = key.data()[j];
-                // std::cout << "value.data()[j] " << value.data()[j] << " ((char *)data.get())[i] " << ((char *)data.get())[i] << std::endl;
-            }
-
-            // std::copy_n(key.data(), key_length, (char *)data.get() + HEADER_SIZE);
-
-            // std::fill_n((char *)data.get() + HEADER_SIZE + key_length, value_length, '\0');
-            // std::copy_n(value.data(), value_length, (char *)data.get() + HEADER_SIZE + key_length);
-
-            for (int i = HEADER_SIZE + key_length, j = 0; i < key_length + HEADER_SIZE + value_length; i++, j++)
-            {
-                // std::cout << "index " << i << " j " << j << std::endl;
-                ((char *)data.get())[i] = value.data()[j];
-                // std::cout << "value.data()[j] " << value.data()[j] << " ((char *)data.get())[i] " << ((char *)data.get())[i] << std::endl;
-            }
+            Set(key.data(), value.data(), key.length(), value.length());
         }
 
-        std::uint32_t GetHashCode()
+        void Set(char *key, char *value)
         {
-            return *(std::uint32_t *)data.get();
+            Set(key, value, std::strlen(key), std::strlen(value));
         }
 
-        std::uint32_t GetKeyLength()
+        /// {header:[hash code | key length | value length] | payload: [key | value]}
+        void Set(const char *key, const char *value, uint32_t key_length, uint32_t value_length)
         {
-            return *(std::uint32_t *)(data.get() + HEADER_BLOCK_SIZE);
+            auto required_length = RequiredLength(key_length, value_length);
+            Expand(required_length);
+
+            std::cout << "required_length" << required_length << "  " << sizeof(buffer_.get()) << std::endl;
+            uint32_t hashcode = std::hash<std::string_view>{}(std::string_view(key));
+
+            char *hashcode_pointer = buffer_.get();
+            char *key_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE;
+            char *value_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
+
+            std::copy_n((char *)&hashcode, HEADER_HASH_CODE_SIZE, hashcode_pointer);
+            std::copy_n((char *)&key_length, HEADER_KEY_LENGTH_SIZE, key_length_pointer);
+            std::copy_n((char *)&value_length, HEADER_VALUE_LENGTH_SIZE, value_length_pointer);
+
+            char *key_pointer = buffer_.get() + HEADER_SIZE;
+            // std::cout << "key" << sizeof(key) < < < < std::endl;
+            std::copy_n(key, key_length, key_pointer);
+            // std::copy_n(value, value_length, buffer_.get() + HEADER_SIZE + key_length);
+            std::cout << "required_length" << required_length << "  " << std::strlen(buffer_.get()) << std::endl;
+            length_++;
         }
 
-        std::uint32_t GetValueLength()
+        void Get()
         {
-            return *(std::uint32_t *)(data.get() + HEADER_BLOCK_SIZE * 2);
+            std::cout << "get zipmap" << std::endl;
+            uint32_t hashcode;
+            uint32_t key_length;
+            uint32_t value_length;
+            std::copy_n((uint32_t *)buffer_.get(), HEADER_HASH_CODE_SIZE, &hashcode);
+            std::copy_n((uint32_t *)(buffer_.get() + HEADER_HASH_CODE_SIZE), HEADER_KEY_LENGTH_SIZE, &key_length);
+            std::copy_n((uint32_t *)(buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE), HEADER_VALUE_LENGTH_SIZE, &value_length);
+
+            auto key = std::make_unique<char[]>(key_length);
+            // auto value = std::make_unique<char[]>(value_length);
+            std::copy_n(buffer_.get() + HEADER_SIZE, key_length, key.get());
+            // std::copy_n(buffer_.get() + HEADER_SIZE + key_length, value_length, value.get());
+
+            std::cout << "hashcode " << hashcode << std::endl;
+            std::cout << "key_length " << key_length << std::endl;
+            std::cout << "value_length " << value_length << std::endl;
+            std::cout << "key " << key << std::endl;
+            // std::cout << "value " << value << std::endl;
         }
-
-        std::string_view GetKey()
-        {
-            std::uint32_t key_length = GetKeyLength();
-            char key[key_length];
-            int index = HEADER_SIZE;
-            int indexj = 0;
-            while (((char *)data.get())[index] != '\0')
-            {
-                key[indexj] = ((char *)data.get())[index];
-                indexj++;
-                index++;
-            }
-            key[key_length - 1] = '\0';
-
-            std::cout << key << std::endl;
-
-            return std::string_view("hello");
-        }
-
-        char *GetValue()
-        {
-            std::uint32_t key_length = GetKeyLength();
-            std::uint32_t value_length = GetValueLength();
-            char value[value_length];
-            int index = HEADER_SIZE + key_length;
-            int indexj = 0;
-            while (((char *)data.get())[index] != '\0')
-            {
-                value[indexj] = ((char *)data.get())[index];
-                indexj++;
-                index++;
-            }
-            value[value_length - 1] = '\0';
-
-            return value;
-        }
-
-        ~Zipmap() {}
 
     private:
-        std::unique_ptr<void *> data = nullptr;
+        size_t RequiredLength(uint32_t key_length, uint32_t value_length)
+        {
+            return key_length + value_length + HEADER_SIZE + 255;
+        }
+
+        void Expand(size_t size)
+        {
+            if (buffer_ != nullptr)
+                size += sizeof(buffer_.get());
+            Resize(size);
+        }
+
+        void Resize(size_t size)
+        {
+            auto new_buffer = std::make_unique<char[]>(size + 255);
+            if (buffer_ != nullptr)
+                std::copy_n(buffer_.get(), size, new_buffer.get());
+            buffer_ = std::move(new_buffer);
+        }
+
+    private:
+        std::unique_ptr<char[]> buffer_ = nullptr;
+        uint8_t max_size_ = 255;
+        uint8_t length_ = 0;
     };
 } // namespace base
