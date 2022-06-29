@@ -117,7 +117,7 @@ namespace base
         }
 
         /// redis function: dictResize
-        /// 自适应容量到已经存储的元素的数量，并重新哈希全部键值对
+        /// 将容量自适应到已存储的元素的数量，并重新哈希全部键值对
         bool Fit();
 
         /// redis function: dictAdd
@@ -162,7 +162,16 @@ namespace base
 
         /// redis function: dictReplace
         /// 删除键值对
-        bool Delete(const KeyType &key);
+        bool Delete(const KeyType &key)
+        {
+            if (Empty()) {
+                return true;
+            }
+            auto index = hash_(key) & sizeMask_;
+            auto &bucket = table_[index];
+            size_t size = bucket.remove_if([&](Entry entry){return equal_(entry.first, key);});
+            return size > 0;
+        }
 
         /// redis function: dictDelete
         /// 查找键值对
