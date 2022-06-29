@@ -3,12 +3,15 @@
 #include "base/list.hpp"
 #include "base/reference_optional.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace base
@@ -21,19 +24,21 @@ namespace base
         typename KeyType = int,
         typename ValueType = int,
         typename HashFunction = std::hash<KeyType>,
-        typename EqualFunction = std::equal_to<KeyType>>
+        typename EqualFunction = std::equal_to<>>
     class Dictionary
     {
         static constexpr int64_t HT_INITIAL_EXP = 2;
         static constexpr int64_t HT_INITIAL_SIZE = 1 << HT_INITIAL_EXP;
 
+        using Entry = std::pair<const KeyType, ValueType>;
+        using HashTable = std::vector<ForwardList<Entry>>;
+
         static_assert(
             std::is_same_v<decltype(HashFunction()(KeyType{})), size_t>,
             "KeyType 无法被 HashFunction 计算哈希值");
-        using Entry = std::pair<KeyType, ValueType>;
-        using HashTable = std::vector<ForwardList<Entry>>;
 
     public:
+        /// redis function: dictCreate
         Dictionary() = default;
 
         /// 复制构造
@@ -72,6 +77,7 @@ namespace base
             return *this;
         }
 
+        /// redis function: dictExpand
         /// 扩容到指定容量，并重新哈希全部键值对
         bool Expand(size_t size)
         {
@@ -84,6 +90,7 @@ namespace base
             auto new_size = expand_size;
             auto new_sizemask = expand_size - 1;
             new_table.resize(expand_size);
+            assert(new_table.size() == expand_size && "Out of memory");
             auto new_used = 0;
 
             for (auto &bucket : table_)
@@ -103,26 +110,87 @@ namespace base
 
             assert(new_used == used_);
             std::swap(table_, new_table);
+            size_ = new_size;
+            sizemask_ = new_sizemask;
 
             return true;
         }
 
+        /// redis function: dictResize
         /// 自适应容量到已经存储的元素的数量，并重新哈希全部键值对
         bool Fit();
 
+        /// redis function: dictAdd
         /// 添加新的键值对
         template <typename KT, typename VT>
-        bool Add(KT &&key, VT &&value);
+        bool Add(KT &&key, VT &&value)
+        {
+            int64_t index = FindBucketIndex(key);
+            if (index == -1)
+            {
+                return false;
+            }
 
+            table_[index].push_front(
+                std::make_pair(
+                    std::forward<KT>(key),
+                    std::forward<VT>(value)));
+
+            used_++;
+
+            return true;
+        }
+
+        /// redis function: dictReplace
         /// 替换字典中键为 key 的值成 value
         template <typename VT>
         bool Replace(const KeyType &key, VT &&value);
 
+        /// redis function: dictReplace
         /// 删除键值对
         bool Delete(const KeyType &key);
 
+        /// redis function: dictDelete
         /// 查找键值对
-        ReferenceOptional<const Entry> Find(const KeyType &key);
+        ReferenceOptional<Entry> Find(const KeyType &key)
+        {
+            if (Empty())
+            {
+                return std::nullopt;
+            }
+
+            auto index = hash_(key) & sizemask_;
+            auto &bucket = table_[index];
+
+            // 查找是否已经有相同的 key
+            for (auto &entry : bucket)
+            {
+                if (equal_(entry.first, key))
+                {
+                    return entry;
+                }
+            }
+
+            return std::nullopt;
+        }
+
+        /// 获取已经存储的元素数量
+        auto ElementSize()
+        {
+            return used_;
+        }
+
+        /// 获取表空位的元素数量
+        auto BucketSize()
+        {
+            return table_.size();
+        }
+
+        /// 是否为空
+        bool Empty()
+        {
+            return size_ == 0;
+        }
 
         /// 释放全部内存
         void Release();
@@ -148,6 +216,7 @@ namespace base
             std::swap(used_, other.used_);
         }
 
+        /// redis function: _dictNextPower
         /// 计算扩容的目标大小，返回的数值是数列 2^n 中大于 size 的最小值
         int64_t NextExpandSize(uint64_t size)
         {
@@ -166,6 +235,49 @@ namespace base
                 }
                 e++;
             }
+        }
+
+        /// redis function: _dictExpandIfNeeded
+        /// 检查是否需要并进行扩容
+        bool ExpandIfNeeded()
+        {
+            if (size_ == 0)
+            {
+                return Expand(HT_INITIAL_SIZE);
+            }
+
+            if (used_ == size_)
+            {
+                return Expand(size_ * 2);
+            }
+
+            return true;
+        }
+
+        /// redis function: _dictKeyIndex
+        /// 查找能放下参数提供的 key 的表空位，如果 key 在表里已经存在，返回 -1
+        int64_t FindBucketIndex(const KeyType &key)
+        {
+            // 检查需不需要扩容
+            // 扩容失败直接返回 -1。不过目前扩容失败会触发断言错误，这个分支不可能会执行。
+            if (!ExpandIfNeeded())
+            {
+                return -1;
+            }
+
+            auto index = hash_(key) & sizemask_;
+            auto &bucket = table_[index];
+
+            // 查找是否已经有相同的 key
+            for (const auto &entry : bucket)
+            {
+                if (equal_(entry.first, key))
+                {
+                    return -1;
+                }
+            }
+
+            return index;
         }
 
     private:
