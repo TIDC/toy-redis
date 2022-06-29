@@ -117,7 +117,7 @@ namespace base
         }
 
         /// redis function: dictResize
-        /// 自适应容量到已经存储的元素的数量，并重新哈希全部键值对
+        /// 将容量自适应到已存储的元素的数量，并重新哈希全部键值对
         bool Fit();
 
         /// redis function: dictAdd
