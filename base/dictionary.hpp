@@ -54,7 +54,7 @@ namespace base
             other.table_.clear();
             other.table_.shrink_to_fit();
             other.size_ = 0;
-            other.sizemask_ = 0;
+            other.sizeMask_ = 0;
             other.used_ = 0;
         }
 
@@ -72,7 +72,7 @@ namespace base
             other.table_.clear();
             other.table_.shrink_to_fit();
             other.size_ = 0;
-            other.sizemask_ = 0;
+            other.sizeMask_ = 0;
             other.used_ = 0;
             return *this;
         }
@@ -111,7 +111,7 @@ namespace base
             assert(new_used == used_);
             std::swap(table_, new_table);
             size_ = new_size;
-            sizemask_ = new_sizemask;
+            sizeMask_ = new_sizemask;
 
             return true;
         }
@@ -173,7 +173,7 @@ namespace base
                 return std::nullopt;
             }
 
-            auto index = hash_(key) & sizemask_;
+            auto index = hash_(key) & sizeMask_;
             auto &bucket = table_[index];
 
             // 查找是否已经有相同的 key
@@ -217,7 +217,7 @@ namespace base
         {
             table_ = other.table_;
             size_ = other.size_;
-            sizemask_ = other.sizemask_;
+            sizeMask_ = other.sizeMask_;
             used_ = other.used_;
         }
 
@@ -226,7 +226,7 @@ namespace base
         {
             std::swap(table_, other.table_);
             std::swap(size_, other.size_);
-            std::swap(sizemask_, other.sizemask_);
+            std::swap(sizeMask_, other.sizeMask_);
             std::swap(used_, other.used_);
         }
 
@@ -279,7 +279,7 @@ namespace base
                 return -1;
             }
 
-            auto index = hash_(key) & sizemask_;
+            auto index = hash_(key) & sizeMask_;
             auto &bucket = table_[index];
 
             // 查找是否已经有相同的 key
@@ -299,7 +299,7 @@ namespace base
         EqualFunction equal_;
         HashTable table_{};
         size_t size_ = 0;
-        size_t sizemask_ = 0;
+        size_t sizeMask_ = 0;
         size_t used_ = 0;
     };
 
