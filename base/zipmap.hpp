@@ -44,52 +44,57 @@ namespace base
             auto required_length = RequiredLength(key_length, value_length);
             Expand(required_length);
 
-            std::cout << "required_length" << required_length << "  " << sizeof(buffer_.get()) << std::endl;
             uint32_t hashcode = std::hash<std::string_view>{}(std::string_view(key));
-
             char *hashcode_pointer = buffer_.get();
             char *key_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE;
             char *value_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
-
-            std::copy_n((char *)&hashcode, HEADER_HASH_CODE_SIZE, hashcode_pointer);
-            std::copy_n((char *)&key_length, HEADER_KEY_LENGTH_SIZE, key_length_pointer);
-            std::copy_n((char *)&value_length, HEADER_VALUE_LENGTH_SIZE, value_length_pointer);
-
+            *hashcode_pointer = hashcode;
+            *key_length_pointer = key_length;
+            *value_length_pointer = value_length;
             char *key_pointer = buffer_.get() + HEADER_SIZE;
-            // std::cout << "key" << sizeof(key) < < < < std::endl;
             std::copy_n(key, key_length, key_pointer);
-            // std::copy_n(value, value_length, buffer_.get() + HEADER_SIZE + key_length);
+            std::copy_n(value, value_length, buffer_.get() + HEADER_SIZE + key_length);
             std::cout << "required_length" << required_length << "  " << std::strlen(buffer_.get()) << std::endl;
             length_++;
         }
 
         void Get()
         {
-            std::cout << "get zipmap" << std::endl;
-            uint32_t hashcode;
-            uint32_t key_length;
-            uint32_t value_length;
-            std::copy_n((uint32_t *)buffer_.get(), HEADER_HASH_CODE_SIZE, &hashcode);
-            std::copy_n((uint32_t *)(buffer_.get() + HEADER_HASH_CODE_SIZE), HEADER_KEY_LENGTH_SIZE, &key_length);
-            std::copy_n((uint32_t *)(buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE), HEADER_VALUE_LENGTH_SIZE, &value_length);
+            // std::cout << "get zipmap" << std::endl;
+            auto hashcode_pointer = buffer_.get();
+            auto key_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE;
+            auto value_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
+            uint32_t hashcode = *hashcode_pointer;
+            uint32_t key_length = *key_length_pointer;
+            uint32_t value_length = *value_length_pointer;
 
             auto key = std::make_unique<char[]>(key_length);
-            // auto value = std::make_unique<char[]>(value_length);
+            auto value = std::make_unique<char[]>(value_length);
             std::copy_n(buffer_.get() + HEADER_SIZE, key_length, key.get());
-            // std::copy_n(buffer_.get() + HEADER_SIZE + key_length, value_length, value.get());
+            std::copy_n(buffer_.get() + HEADER_SIZE + key_length, value_length, value.get());
 
-            std::cout << "hashcode " << hashcode << std::endl;
-            std::cout << "key_length " << key_length << std::endl;
-            std::cout << "value_length " << value_length << std::endl;
+            std::cout << "Get hashcode " << hashcode << std::endl;
+            std::cout << "Get key_length " << key_length << std::endl;
+            std::cout << "Get value_length " << value_length << std::endl;
             // FIXME: key 不支持与 std::cout 交互的 operator<<
-            // std::cout << "key " << key << std::endl;
-            // std::cout << "value " << value << std::endl;
+            std::cout << "Get key " << key << std::endl;
+            std::cout << "Get value " << value << std::endl;
+        }
+
+        void Delete();
+        void Delete();
+        void Rewind();
+        void Next();
+        void Exists();
+        uint8_t Length()
+        {
+            return length_;
         }
 
     private:
         size_t RequiredLength(uint32_t key_length, uint32_t value_length)
         {
-            return key_length + value_length + HEADER_SIZE + 255;
+            return key_length + value_length + HEADER_SIZE;
         }
 
         void Expand(size_t size)
@@ -111,5 +116,6 @@ namespace base
         std::unique_ptr<char[]> buffer_ = nullptr;
         uint8_t max_size_ = 255;
         uint8_t length_ = 0;
+        void *tail_pointer_ = nullptr;
     };
 } // namespace base
