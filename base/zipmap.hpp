@@ -19,9 +19,13 @@ namespace base
     {
 
     public:
-        Zipmap(){};
+        Zipmap()
+        {
+            // FIXME: 临时去除未使用警告
+            ((void)&max_size_);
+        };
 
-        ~Zipmap(){};
+        ~Zipmap() = default;
 
     public:
         void Set(std::string_view key, std::string_view value)
@@ -77,7 +81,8 @@ namespace base
             std::cout << "hashcode " << hashcode << std::endl;
             std::cout << "key_length " << key_length << std::endl;
             std::cout << "value_length " << value_length << std::endl;
-            std::cout << "key " << key << std::endl;
+            // FIXME: key 不支持与 std::cout 交互的 operator<<
+            // std::cout << "key " << key << std::endl;
             // std::cout << "value " << value << std::endl;
         }
 

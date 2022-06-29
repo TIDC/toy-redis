@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#if defined(__cpp_coroutines) && defined(__cpp_impl_coroutine)
+#if !defined(__cpp_coroutines) && defined(__cpp_impl_coroutine)
 #include <coroutine>
 struct promise;
 struct coroutine : std::coroutine_handle<promise>
