@@ -54,34 +54,32 @@ namespace base
             char *key_pointer = buffer_.get() + HEADER_SIZE;
             std::copy_n(key, key_length, key_pointer);
             std::copy_n(value, value_length, buffer_.get() + HEADER_SIZE + key_length);
-            std::cout << "required_length" << required_length << "  " << std::strlen(buffer_.get()) << std::endl;
-            length_++;
+            length_ += 1;
         }
 
-        void Get()
+        std::optional<std::string_view> Get(std::string_view key)
         {
-            // std::cout << "get zipmap" << std::endl;
-            auto hashcode_pointer = buffer_.get();
-            auto key_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE;
-            auto value_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
+
+            auto *hashcode_pointer = buffer_.get();
             uint32_t hashcode = *hashcode_pointer;
+
+            auto key_length_pointer = GetKeyLengthPointer(buffer_.get());
             uint32_t key_length = *key_length_pointer;
+
+            auto value_length_pointer = GetValueLengthPointer(buffer_.get());
             uint32_t value_length = *value_length_pointer;
 
-            auto key = std::make_unique<char[]>(key_length);
-            auto value = std::make_unique<char[]>(value_length);
-            std::copy_n(buffer_.get() + HEADER_SIZE, key_length, key.get());
-            std::copy_n(buffer_.get() + HEADER_SIZE + key_length, value_length, value.get());
+            auto key_pointer = GetKeyPointer(buffer_.get());
+            // auto key = std::make_unique<char[]>(key_length);
+            // std::copy_n(key_pointer, key_length, key.get());
 
-            std::cout << "Get hashcode " << hashcode << std::endl;
-            std::cout << "Get key_length " << key_length << std::endl;
-            std::cout << "Get value_length " << value_length << std::endl;
-            // FIXME: key 不支持与 std::cout 交互的 operator<<
-            std::cout << "Get key " << key << std::endl;
-            std::cout << "Get value " << value << std::endl;
+            auto value_pointer = GetValuePointer(buffer_.get(), key_length);
+            // 都不用动，直接返回 value 指针给 string_view
+            return std::optional<std::string_view>{std::string_view(value_pointer, value_length)};
+            //  : std::nullopt;
+            // return std::nullopt;
         }
 
-        void Delete();
         void Delete();
         void Rewind();
         void Next();
@@ -91,7 +89,31 @@ namespace base
             return length_;
         }
 
+        size_t Size()
+        {
+            return size_;
+        }
+
     private:
+        /// 根据数据块大小偏移指针指向指定的数据
+        char *GetKeyLengthPointer(char *start_pointer)
+        {
+            return start_pointer + HEADER_HASH_CODE_SIZE;
+        }
+        char *GetValueLengthPointer(char *start_pointer)
+        {
+            return start_pointer + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
+        }
+        char *GetKeyPointer(char *start_pointer)
+        {
+            return start_pointer + HEADER_SIZE;
+        }
+        char *GetValuePointer(char *start_pointer, uint32_t key_length)
+        {
+            return start_pointer + HEADER_SIZE + key_length;
+        }
+        /// 根据数据块大小偏移指针指向指定的数据
+        /// 计算出一个数据块所需的大小
         size_t RequiredLength(uint32_t key_length, uint32_t value_length)
         {
             return key_length + value_length + HEADER_SIZE;
@@ -106,16 +128,18 @@ namespace base
 
         void Resize(size_t size)
         {
-            auto new_buffer = std::make_unique<char[]>(size + 255);
+            auto new_buffer = std::make_unique<char[]>(size);
             if (buffer_ != nullptr)
                 std::copy_n(buffer_.get(), size, new_buffer.get());
             buffer_ = std::move(new_buffer);
+            size_ = size;
         }
 
     private:
         std::unique_ptr<char[]> buffer_ = nullptr;
         uint8_t max_size_ = 255;
         uint8_t length_ = 0;
+        size_t size_ = 0;
         void *tail_pointer_ = nullptr;
     };
 } // namespace base
