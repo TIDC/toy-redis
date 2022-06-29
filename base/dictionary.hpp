@@ -162,7 +162,16 @@ namespace base
 
         /// redis function: dictReplace
         /// 删除键值对
-        bool Delete(const KeyType &key);
+        bool Delete(const KeyType &key)
+        {
+            if (Empty()) {
+                return true;
+            }
+            auto index = hash_(key) & sizeMask_;
+            auto &bucket = table_[index];
+            size_t size = bucket.remove_if([&](Entry entry){return equal_(entry.first, key);});
+            return size > 0;
+        }
 
         /// redis function: dictDelete
         /// 查找键值对
