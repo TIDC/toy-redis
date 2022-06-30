@@ -9,13 +9,24 @@
 TEST(SDS, ZipMap)
 {
     base::ZipMap zmap;
-    zmap.Set("hi\0", "this is hello hah!\0");
-    if (auto value = zmap.Get(std::string_view("")))
+    //      0           4           8        12    14    29 -- 31
+    // {[hashcode][key_length][value_length][key][value][  ]}
+    zmap.Set("hi", "this is hi hah!");
+    //      31          35          39       43    14
+    // {[hashcode][key_length][value_length][key][value]}
+    zmap.Set("hello", "this is hello hah!");
+
+    zmap.Set("王花花", "Hello my name is 王花花!");
+
+    if (auto value = zmap.Get(std::string_view("王花花")))
     {
-        std::cout << "create2(true) returned " << *value << '\n';
+        std::cout << "get 王花花: " << *value << '\n';
     }
-    std::cout << "length " << zmap.Length() << std::endl;
-    std::cout << "size " << zmap.Size() << std::endl;
+
+    if (auto value = zmap.Get(std::string_view("hello")))
+    {
+        std::cout << "get hello: " << *value << '\n';
+    }
 
     // FIXME: 字面量字符串不能直接比较
     // ASSERT_EQ("hello" == "Hello Redis++", false);

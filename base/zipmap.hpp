@@ -14,7 +14,6 @@
 
 namespace base
 {
-    // template <typename VT>
     class ZipMap
     {
 
@@ -42,47 +41,68 @@ namespace base
         void Set(const char *key, const char *value, uint32_t key_length, uint32_t value_length)
         {
             auto required_length = RequiredLength(key_length, value_length);
+            auto old_size = size_;
             Expand(required_length);
 
+            // 直接把新元素放到后面
+            auto start_pointer = buffer_.get() + old_size;
+
             uint32_t hashcode = std::hash<std::string_view>{}(std::string_view(key));
-            char *hashcode_pointer = buffer_.get();
-            char *key_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE;
-            char *value_length_pointer = buffer_.get() + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
+            char *hashcode_pointer = start_pointer;
             *hashcode_pointer = hashcode;
+
+            auto key_length_pointer = GetKeyLengthPointer(start_pointer);
             *key_length_pointer = key_length;
+
+            auto value_length_pointer = GetValueLengthPointer(start_pointer);
             *value_length_pointer = value_length;
-            char *key_pointer = buffer_.get() + HEADER_SIZE;
+
+            auto key_pointer = GetKeyPointer(start_pointer);
             std::copy_n(key, key_length, key_pointer);
-            std::copy_n(value, value_length, buffer_.get() + HEADER_SIZE + key_length);
+
+            auto value_pointer = GetValuePointer(start_pointer, key_length);
+            std::copy_n(value, value_length, value_pointer);
             length_ += 1;
         }
 
+        // 根据 key 获取 value
         std::optional<std::string_view> Get(std::string_view key)
         {
+            if (length_ == 0)
+                return std::nullopt;
 
-            auto *hashcode_pointer = buffer_.get();
-            uint32_t hashcode = *hashcode_pointer;
+            uint32_t key_length = 0;
+            uint32_t value_length = 0;
 
-            auto key_length_pointer = GetKeyLengthPointer(buffer_.get());
-            uint32_t key_length = *key_length_pointer;
+            auto start_pointer = buffer_.get();
 
-            auto value_length_pointer = GetValueLengthPointer(buffer_.get());
-            uint32_t value_length = *value_length_pointer;
+            while (start_pointer != nullptr)
+            {
+                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                key_length = *key_length_pointer;
 
-            auto key_pointer = GetKeyPointer(buffer_.get());
-            // auto key = std::make_unique<char[]>(key_length);
-            // std::copy_n(key_pointer, key_length, key.get());
+                auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                value_length = *value_length_pointer;
 
-            auto value_pointer = GetValuePointer(buffer_.get(), key_length);
-            // 都不用动，直接返回 value 指针给 string_view
-            return std::optional<std::string_view>{std::string_view(value_pointer, value_length)};
-            //  : std::nullopt;
-            // return std::nullopt;
+                auto key_pointer = GetKeyPointer(start_pointer);
+                if (key.compare(std::string_view(key_pointer, key_length)) == 0)
+                {
+                    auto value_pointer = GetValuePointer(start_pointer, key_length);
+                    // 都不用动，直接返回 value 指针给 string_view
+                    return std::optional<std::string_view>{std::string_view(value_pointer, value_length)};
+                }
+                start_pointer = Next(start_pointer, key_length, value_length);
+            }
+
+            // auto *hashcode_pointer = start_pointer;
+            // uint32_t hashcode = *hashcode_pointer;
+
+            return std::nullopt;
         }
 
         void Delete();
         void Rewind();
-        void Next();
+
         void Exists();
         uint8_t Length()
         {
@@ -95,6 +115,15 @@ namespace base
         }
 
     private:
+        // 迭代 zip map，根据 key length value length 获得下一个位置的指针
+        char *Next(char *data_pointer, size_t key_length, size_t value_length)
+        {
+            auto map_size = RequiredLength(key_length, value_length);
+            auto distance = data_pointer - buffer_.get();
+            if (distance + map_size >= size_)
+                return nullptr;
+            return data_pointer + map_size;
+        }
         /// 根据数据块大小偏移指针指向指定的数据
         char *GetKeyLengthPointer(char *start_pointer)
         {
@@ -112,18 +141,16 @@ namespace base
         {
             return start_pointer + HEADER_SIZE + key_length;
         }
-        /// 根据数据块大小偏移指针指向指定的数据
-        /// 计算出一个数据块所需的大小
+        /// 根据数据块大小偏移指针指向指定的数据 end
+        /// 计算出一个数据块所需的大小 多 2 字节隔断
         size_t RequiredLength(uint32_t key_length, uint32_t value_length)
         {
-            return key_length + value_length + HEADER_SIZE;
+            return key_length + value_length + HEADER_SIZE + 2;
         }
 
         void Expand(size_t size)
         {
-            if (buffer_ != nullptr)
-                size += sizeof(buffer_.get());
-            Resize(size);
+            Resize(size += size_);
         }
 
         void Resize(size_t size)
