@@ -40,26 +40,33 @@ namespace base
         /// {header:[hash code | key length | value length] | payload: [key | value]}
         void Set(const char *key, const char *value, uint32_t key_length, uint32_t value_length)
         {
+            // 计算插入元素所需长度
             auto required_length = RequiredLength(key_length, value_length);
             auto old_size = size_;
+            // 判断是否需要扩容
             Expand(required_length);
 
             // 直接把新元素放到后面
             auto start_pointer = buffer_.get() + old_size;
 
+            // 对key进行哈希计算
             uint32_t hashcode = std::hash<std::string_view>{}(std::string_view(key));
             char *hashcode_pointer = start_pointer;
             *hashcode_pointer = hashcode;
 
+            // 获取存储key的长度的起始位置
             auto key_length_pointer = GetKeyLengthPointer(start_pointer);
             *key_length_pointer = key_length;
 
+            // 获取存储value的长度的起始位置
             auto value_length_pointer = GetValueLengthPointer(start_pointer);
             *value_length_pointer = value_length;
 
+            // 获取存储key的起始位置
             auto key_pointer = GetKeyPointer(start_pointer);
             std::copy_n(key, key_length, key_pointer);
 
+            // 获取存储value的起始位置
             auto value_pointer = GetValuePointer(start_pointer, key_length);
             std::copy_n(value, value_length, value_pointer);
             length_ += 1;
