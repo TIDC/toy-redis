@@ -253,15 +253,31 @@ namespace base
             {
                 return std::numeric_limits<int64_t>::max();
             }
-
-            while (true)
-            {
-                if ((uint64_t{1} << e) >= size)
-                {
-                    return (uint64_t{1} << e);
-                }
-                e++;
+            
+            // 二分查找
+            auto idx = 63;
+            uint64_t i = 1;
+            if (size >= i<<32) {
+                idx -= 32;
+                size >>= 32;
             }
+            if (size >= i<<16) {
+                idx -= 16;
+                size >>= 16;
+            }
+            if (size >= i<<8) {
+                idx -= 8;
+                size >>= 8;
+            }
+            if (size >= i<<4) {
+                idx -= 4;
+                size >>= 4;
+            }
+            if (size >= i<<2) {
+                idx -= 2;
+                size >>= 2;
+            }
+            return i<<(64-idx);
         }
 
         /// redis function: _dictExpandIfNeeded
