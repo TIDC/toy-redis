@@ -253,29 +253,33 @@ namespace base
             {
                 return std::numeric_limits<int64_t>::max();
             }
-            
+
             // 二分查找
             auto idx = 63;
             uint64_t i = 1;
-            if (size >= i<<32) {
+            if (size >= 4294967296) {
                 idx -= 32;
                 size >>= 32;
             }
-            if (size >= i<<16) {
+            if (size >= 65536) {
                 idx -= 16;
                 size >>= 16;
             }
-            if (size >= i<<8) {
+            if (size >= 256) {
                 idx -= 8;
                 size >>= 8;
             }
-            if (size >= i<<4) {
+            if (size >= 16) {
                 idx -= 4;
                 size >>= 4;
             }
-            if (size >= i<<2) {
+            if (size >= 4) {
                 idx -= 2;
                 size >>= 2;
+            }
+            if (size >= 2) {
+                idx -= 1;
+                size >>= 1;
             }
             return i<<(64-idx);
         }
