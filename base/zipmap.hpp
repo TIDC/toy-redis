@@ -42,26 +42,31 @@ namespace base
         /// {header:[hash code | key length | value length] | payload: [key | value]}
         void Set(const char *key, const char *value, uint32_t key_length, uint32_t value_length)
         {
+            // 计算插入元素所需长度
             auto required_length = RequiredLength(key_length, value_length);
             auto old_size = size_;
+            // 判断是否需要扩容
             Expand(required_length);
 
             // 直接把新元素放到后面
             auto start_pointer = buffer_.get() + old_size;
 
+            // 对key进行哈希计算
             uint32_t hashcode = hash(std::string_view(key));
             auto hashcode_pointer = start_pointer;
             *(uint32_t *)hashcode_pointer = hashcode;
+            // 获取存储key的长度的起始位置
+            auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+            *(uint32_t *)key_length_pointer = key_length;
+            // 获取存储value的长度的起始位置
+            auto value_length_pointer = GetValueLengthPointer(start_pointer);
+            *(uint32_t *)value_length_pointer = value_length;
 
-            auto key_used_pointer = GetKeyLengthPointer(start_pointer);
-            *(uint32_t *)key_used_pointer = key_length;
-
-            auto value_used_pointer = GetValueLengthPointer(start_pointer);
-            *(uint32_t *)value_used_pointer = value_length;
-
+            // 获取存储key的起始位置
             auto key_pointer = GetKeyPointer(start_pointer);
             std::copy_n(key, key_length, key_pointer);
 
+            // 获取存储value的起始位置
             auto value_pointer = GetValuePointer(start_pointer, key_length);
             std::copy_n(value, value_length, value_pointer);
             used_ += 1;
@@ -73,33 +78,38 @@ namespace base
             if (used_ == 0)
                 return std::nullopt;
 
+            // 计算需要查找的 key 的 hashcode
             uint32_t key_hashcode = hash(std::string_view(key));
 
             uint32_t key_length = 0;
             uint32_t value_length = 0;
 
+            // 头指针
             auto start_pointer = buffer_.get();
 
             while (start_pointer != nullptr)
             {
+                // 获取 hashcode
                 auto hashcode_pointer = start_pointer;
                 uint32_t hashcode = *(uint32_t *)hashcode_pointer;
+                // 获取 key 长度
+                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                key_length = *(uint32_t *)key_length_pointer;
+                // 获取 value 长度
+                auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                value_length = *(uint32_t *)value_length_pointer;
 
-                auto key_used_pointer = GetKeyLengthPointer(start_pointer);
-                key_length = *(uint32_t *)key_used_pointer;
-
-                auto value_used_pointer = GetValueLengthPointer(start_pointer);
-                value_length = *(uint32_t *)value_used_pointer;
-
+                // 两个 hashcode 对不上，不用走下面了，直接下一个
                 if (key_hashcode != hashcode)
                 {
                     start_pointer = Next(start_pointer, key_length, value_length);
                     continue;
                 }
-
+                // 获取 key 进行匹配
                 auto key_pointer = GetKeyPointer(start_pointer);
                 if (key.compare(std::string_view(key_pointer, key_length)) == 0)
                 {
+                    // 获取 value 返回回去
                     auto value_pointer = GetValuePointer(start_pointer, key_length);
                     // 都不用动，直接返回 value 指针给 string_view
                     return std::optional<std::string_view>{std::string_view(value_pointer, value_length)};
@@ -111,7 +121,7 @@ namespace base
 
         void Delete();
         void Rewind();
-
+        /// 判断 key 是否存在
         bool Exists(std::string_view key)
         {
             if (used_ == 0)
@@ -129,11 +139,11 @@ namespace base
                 auto hashcode_pointer = start_pointer;
                 uint32_t hashcode = *(uint32_t *)hashcode_pointer;
 
-                auto key_used_pointer = GetKeyLengthPointer(start_pointer);
-                key_length = *(uint32_t *)key_used_pointer;
+                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                key_length = *(uint32_t *)key_length_pointer;
 
-                auto value_used_pointer = GetValueLengthPointer(start_pointer);
-                value_length = *(uint32_t *)value_used_pointer;
+                auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                value_length = *(uint32_t *)value_length_pointer;
 
                 if (key_hashcode != hashcode)
                 {
