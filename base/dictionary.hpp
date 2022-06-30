@@ -165,12 +165,16 @@ namespace base
         bool Delete(const KeyType &key)
         {
             if (Empty()) {
-                return true;
+                return false;
             }
             auto index = hash_(key) & sizeMask_;
             auto &bucket = table_[index];
             size_t size = bucket.remove_if([&](Entry entry){return equal_(entry.first, key);});
-            return size > 0;
+            if (size > 0) {
+                used_--;
+                return true;
+            }
+            return false;
         }
 
         /// redis function: dictDelete

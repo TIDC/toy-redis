@@ -68,3 +68,20 @@ TEST(dict, Replace)
     ASSERT_EQ(find_hello.has_value(), true);
     ASSERT_EQ(find_hello->get().second, 2048);
 }
+
+TEST(dict, Delete)
+{
+    base::Dictionary<std::string, int64_t> dict;
+    dict.Add("hello", 1024);
+    dict.Add("world", 2048);
+
+    ASSERT_EQ(dict.ElementSize(), 2);
+    ASSERT_EQ(dict.BucketSize(), 4);
+    auto find_hello = dict.Find("hello");
+    ASSERT_EQ(find_hello.has_value(), true);
+    ASSERT_EQ(find_hello->get().second, 1024);
+    dict.Delete("hello");
+    ASSERT_EQ(dict.ElementSize(), 1);
+    find_hello = dict.Find("hello");
+    ASSERT_EQ(find_hello.has_value(), false);
+}
