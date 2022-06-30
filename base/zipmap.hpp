@@ -12,6 +12,8 @@
 #define HEADER_HASH_CODE_SIZE 4
 #define HEADER_SIZE HEADER_KEY_LENGTH_SIZE + HEADER_VALUE_LENGTH_SIZE + HEADER_HASH_CODE_SIZE
 
+auto hash = std::hash<std::string_view>{};
+
 namespace base
 {
     class ZipMap
@@ -47,15 +49,15 @@ namespace base
             // 直接把新元素放到后面
             auto start_pointer = buffer_.get() + old_size;
 
-            uint32_t hashcode = std::hash<std::string_view>{}(std::string_view(key));
-            char *hashcode_pointer = start_pointer;
-            *hashcode_pointer = hashcode;
+            uint32_t hashcode = hash(std::string_view(key));
+            auto hashcode_pointer = start_pointer;
+            *(uint32_t *)hashcode_pointer = hashcode;
 
             auto key_length_pointer = GetKeyLengthPointer(start_pointer);
-            *key_length_pointer = key_length;
+            *(uint32_t *)key_length_pointer = key_length;
 
             auto value_length_pointer = GetValueLengthPointer(start_pointer);
-            *value_length_pointer = value_length;
+            *(uint32_t *)value_length_pointer = value_length;
 
             auto key_pointer = GetKeyPointer(start_pointer);
             std::copy_n(key, key_length, key_pointer);
@@ -71,6 +73,8 @@ namespace base
             if (length_ == 0)
                 return std::nullopt;
 
+            uint32_t key_hashcode = hash(std::string_view(key));
+
             uint32_t key_length = 0;
             uint32_t value_length = 0;
 
@@ -78,11 +82,20 @@ namespace base
 
             while (start_pointer != nullptr)
             {
+                auto hashcode_pointer = start_pointer;
+                uint32_t hashcode = *(uint32_t *)hashcode_pointer;
+
                 auto key_length_pointer = GetKeyLengthPointer(start_pointer);
-                key_length = *key_length_pointer;
+                key_length = *(uint32_t *)key_length_pointer;
 
                 auto value_length_pointer = GetValueLengthPointer(start_pointer);
-                value_length = *value_length_pointer;
+                value_length = *(uint32_t *)value_length_pointer;
+
+                if (key_hashcode != hashcode)
+                {
+                    start_pointer = Next(start_pointer, key_length, value_length);
+                    continue;
+                }
 
                 auto key_pointer = GetKeyPointer(start_pointer);
                 if (key.compare(std::string_view(key_pointer, key_length)) == 0)
@@ -93,17 +106,51 @@ namespace base
                 }
                 start_pointer = Next(start_pointer, key_length, value_length);
             }
-
-            // auto *hashcode_pointer = start_pointer;
-            // uint32_t hashcode = *hashcode_pointer;
-
             return std::nullopt;
         }
 
         void Delete();
         void Rewind();
 
-        void Exists();
+        bool Exists(std::string_view key)
+        {
+            if (length_ == 0)
+                return false;
+
+            uint32_t key_hashcode = hash(std::string_view(key));
+
+            uint32_t key_length = 0;
+            uint32_t value_length = 0;
+
+            auto start_pointer = buffer_.get();
+
+            while (start_pointer != nullptr)
+            {
+                auto hashcode_pointer = start_pointer;
+                uint32_t hashcode = *(uint32_t *)hashcode_pointer;
+
+                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                key_length = *(uint32_t *)key_length_pointer;
+
+                auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                value_length = *(uint32_t *)value_length_pointer;
+
+                if (key_hashcode != hashcode)
+                {
+                    start_pointer = Next(start_pointer, key_length, value_length);
+                    continue;
+                }
+
+                auto key_pointer = GetKeyPointer(start_pointer);
+                if (key.compare(std::string_view(key_pointer, key_length)) == 0)
+                {
+                    return true;
+                }
+                start_pointer = Next(start_pointer, key_length, value_length);
+            }
+            return false;
+        }
+
         uint8_t Length()
         {
             return length_;
@@ -156,6 +203,7 @@ namespace base
         void Resize(size_t size)
         {
             auto new_buffer = std::make_unique<char[]>(size);
+            std::fill_n(new_buffer.get(), size, '\0');
             if (buffer_ != nullptr)
                 std::copy_n(buffer_.get(), size, new_buffer.get());
             buffer_ = std::move(new_buffer);
