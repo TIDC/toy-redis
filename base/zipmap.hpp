@@ -197,12 +197,11 @@ namespace base
                     // 获取 value 返回回去
                     auto value_pointer = GetValuePointer(start_pointer, key_length);
                     return std::optional<ZipMapItem>{ZipMapItem{
-                        key: map_key,
-                        value: std::string_view(value_pointer, value_length),
-                        key_length: key_length,
-                        value_length: value_length,
-                        pointer: start_pointer
-                    }};
+                        .key = map_key,
+                        .value = std::string_view(value_pointer, value_length),
+                        .key_length = key_length,
+                        .value_length = value_length,
+                        .pointer = start_pointer}};
                 }
                 start_pointer = Next(start_pointer, key_length, value_length);
             }
@@ -272,7 +271,7 @@ namespace base
         std::unique_ptr<char[]> buffer_ = nullptr;
         uint8_t max_size_ = 255;
         uint8_t used_ = 0;
-        size_t size_ = 0;
+        long int size_ = 0;
     };
 
 } // namespace base
