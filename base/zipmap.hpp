@@ -4,7 +4,8 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <stdint.h>
+#include <cstdint>
+#include <optional>
 #include <string_view>
 
 #define HEADER_KEY_LENGTH_SIZE 4
