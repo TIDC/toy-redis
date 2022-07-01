@@ -279,7 +279,7 @@ namespace base
             if (size >= 2) {
                 idx -= 1;
             }
-            return uint64_t{i}<<(64-idx);
+            return uint64_t{i}<<(63-idx);
         }
 
         /// redis function: _dictExpandIfNeeded
