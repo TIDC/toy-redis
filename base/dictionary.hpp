@@ -83,14 +83,16 @@ namespace base
         {
             assert(size >= used_ && "不允许比已存储的元素少");
 
-            auto expand_size = NextExpandSize(size);
-            assert(expand_size >= size);
+            auto expand_size = AlignExpandSize(size);
+            assert(static_cast<size_t>(expand_size) >= size);
 
             auto new_table = HashTable{};
             auto new_size = expand_size;
             auto new_sizemask = expand_size - 1;
             new_table.resize(expand_size);
-            assert(new_table.size() == expand_size && "Out of memory");
+            assert(
+                new_table.size() == static_cast<size_t>(expand_size) &&
+                "Out of memory");
             auto new_used = 0;
 
             for (auto &bucket : table_)
@@ -108,7 +110,7 @@ namespace base
                 }
             }
 
-            assert(new_used == used_);
+            assert(static_cast<size_t>(new_used) == used_);
             std::swap(table_, new_table);
             size_ = new_size;
             sizeMask_ = new_sizemask;
@@ -160,7 +162,7 @@ namespace base
             return false;
         }
 
-        /// redis function: dictReplace
+        /// redis function: dictDelete
         /// 删除键值对
         bool Delete(const KeyType &key)
         {
@@ -179,7 +181,7 @@ namespace base
             return false;
         }
 
-        /// redis function: dictDelete
+        /// redis function: dictFind
         /// 查找键值对
         ReferenceOptional<Entry> Find(const KeyType &key)
         {
@@ -246,8 +248,8 @@ namespace base
         }
 
         /// redis function: _dictNextPower
-        /// 计算扩容的目标大小，返回的数值是数列 2^n 中大于 size 的最小值
-        int64_t NextExpandSize(uint64_t size)
+        /// 计算扩容的目标大小，返回的数值是数列 2^n 中大于等于 size 的最小值
+        int64_t AlignExpandSize(uint64_t size)
         {
             uint64_t e = HT_INITIAL_EXP;
             // size 超过 int64_t 能表示的最大值，直接返回 int64_t 的最大值
