@@ -38,7 +38,7 @@ namespace base
             Set(key.data(), value.data(), key.length(), value.length());
         }
 
-        void Set(char *key, char *value)
+        void Set(const char *key, const char *value)
         {
             Set(key, value, std::strlen(key), std::strlen(value));
         }
