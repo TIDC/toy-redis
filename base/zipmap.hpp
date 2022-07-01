@@ -29,12 +29,7 @@ namespace base
     {
 
     public:
-        ZipMap()
-        {
-            // FIXME: 临时去除未使用警告
-            ((void)&max_size_);
-        };
-
+        ZipMap() = default;
         ~ZipMap() = default;
 
     public:
@@ -53,7 +48,7 @@ namespace base
         {
             auto key_view = std::string_view(key);
 
-            if (Exists(key_view))
+            if (Exists(key_view) || used_ == max_size_)
                 return false;
 
             // 计算插入元素所需长度
@@ -115,6 +110,7 @@ namespace base
             {
                 std::fill_n(start_pointer, HEADER_HASH_CODE_SIZE, '\0');
                 *(uint32_t *)(start_pointer + HEADER_HASH_CODE_SIZE) = required_length;
+                used_ -= 1;
                 return true;
             }
             return false;

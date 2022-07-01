@@ -39,6 +39,21 @@ TEST(SDS, ZipMapExists)
     // std::cout << "testSdsAppendSpecifyTheLength pass " << sds.Data() << std::endl;
 }
 
+TEST(SDS, ZipMapUsed)
+{
+    base::ZipMap zmap;
+    //      0           4           8        12    14    29 -- 31
+    // {[hashcode][key_length][value_length][key][value][  ]}
+    zmap.Set("hi", "this is hi hah!");
+    //      31          35          39       43    14
+    // {[hashcode][key_length][value_length][key][value]}
+    zmap.Set("hello", "this is hello hah!");
+
+    zmap.Set("王花花", "Hello my name is 王花花!");
+
+    ASSERT_EQ(zmap.Used() == 3, true);
+}
+
 TEST(SDS, ZipMapDelete)
 {
     base::ZipMap zmap;
