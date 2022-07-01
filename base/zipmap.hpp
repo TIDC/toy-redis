@@ -225,7 +225,7 @@ namespace base
         {
             auto map_size = RequiredLength(key_length, value_length);
             auto distance = data_pointer - buffer_.get();
-            if (distance + map_size >= size_)
+            if (static_cast<size_t>(distance + map_size) >= size_)
                 return nullptr;
             return data_pointer + map_size;
         }
