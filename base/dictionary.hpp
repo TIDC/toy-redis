@@ -164,13 +164,15 @@ namespace base
         /// 删除键值对
         bool Delete(const KeyType &key)
         {
-            if (Empty()) {
+            if (Empty())
+            {
                 return false;
             }
             auto index = hash_(key) & sizeMask_;
             auto &bucket = table_[index];
-            size_t size = bucket.remove_if([&](Entry entry){return equal_(entry.first, key);});
-            if (size > 0) {
+            size_t size = bucket.remove_if([&](Entry entry) { return equal_(entry.first, key); });
+            if (size > 0)
+            {
                 used_--;
                 return true;
             }
@@ -257,30 +259,36 @@ namespace base
 
             // 二分查找
             auto idx = 63;
-            if (size >= 4294967296) {
+            if (size >= 4294967296)
+            {
                 idx -= 32;
                 size >>= 32;
             }
-            if (size >= 65536) {
+            if (size >= 65536)
+            {
                 idx -= 16;
                 size >>= 16;
             }
-            if (size >= 256) {
+            if (size >= 256)
+            {
                 idx -= 8;
                 size >>= 8;
             }
-            if (size >= 16) {
+            if (size >= 16)
+            {
                 idx -= 4;
                 size >>= 4;
             }
-            if (size >= 4) {
+            if (size >= 4)
+            {
                 idx -= 2;
                 size >>= 2;
             }
-            if (size >= 2) {
+            if (size >= 2)
+            {
                 idx -= 1;
             }
-            return uint64_t{1}<<(64-idx);
+            return uint64_t{1} << (64 - idx);
         }
 
         /// redis function: _dictExpandIfNeeded
