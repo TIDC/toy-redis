@@ -271,7 +271,7 @@ namespace base
         std::unique_ptr<char[]> buffer_ = nullptr;
         uint8_t max_size_ = 255;
         uint8_t used_ = 0;
-        long int size_ = 0;
+        size_t size_ = 0;
     };
 
 } // namespace base
