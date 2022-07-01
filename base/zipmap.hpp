@@ -7,15 +7,24 @@
 #include <stdint.h>
 #include <string_view>
 
-#define HEADER_KEY_used_SIZE 4
-#define HEADER_VALUE_used_SIZE 4
+#define HEADER_KEY_LENGTH_SIZE 4
+#define HEADER_VALUE_LENGTH_SIZE 4
 #define HEADER_HASH_CODE_SIZE 4
-#define HEADER_SIZE HEADER_KEY_used_SIZE + HEADER_VALUE_used_SIZE + HEADER_HASH_CODE_SIZE
+#define HEADER_SIZE HEADER_KEY_LENGTH_SIZE + HEADER_VALUE_LENGTH_SIZE + HEADER_HASH_CODE_SIZE
 
 auto hash = std::hash<std::string_view>{};
 
 namespace base
 {
+    struct ZipMapItem
+    {
+        std::string_view key;
+        std::string_view value;
+        uint32_t key_length;
+        uint32_t value_length;
+        char *pointer = nullptr;
+    };
+
     class ZipMap
     {
 
@@ -40,8 +49,13 @@ namespace base
         }
 
         /// {header:[hash code | key length | value length] | payload: [key | value]}
-        void Set(const char *key, const char *value, uint32_t key_length, uint32_t value_length)
+        bool Set(const char *key, const char *value, uint32_t key_length, uint32_t value_length)
         {
+            auto key_view = std::string_view(key);
+
+            if (Exists(key_view))
+                return false;
+
             // 计算插入元素所需长度
             auto required_length = RequiredLength(key_length, value_length);
             auto old_size = size_;
@@ -52,7 +66,7 @@ namespace base
             auto start_pointer = buffer_.get() + old_size;
 
             // 对key进行哈希计算
-            uint32_t hashcode = hash(std::string_view(key));
+            uint32_t hashcode = hash(key_view);
             auto hashcode_pointer = start_pointer;
             *(uint32_t *)hashcode_pointer = hashcode;
             // 获取存储key的长度的起始位置
@@ -70,56 +84,42 @@ namespace base
             auto value_pointer = GetValuePointer(start_pointer, key_length);
             std::copy_n(value, value_length, value_pointer);
             used_ += 1;
+            return true;
         }
 
         // 根据 key 获取 value
         std::optional<std::string_view> Get(std::string_view key)
         {
-            if (used_ == 0)
-                return std::nullopt;
 
-            // 计算需要查找的 key 的 hashcode
-            uint32_t key_hashcode = hash(std::string_view(key));
-
-            uint32_t key_length = 0;
-            uint32_t value_length = 0;
-
-            // 头指针
-            auto start_pointer = buffer_.get();
-
-            while (start_pointer != nullptr)
+            if (auto item = Find(key))
             {
-                // 获取 hashcode
-                auto hashcode_pointer = start_pointer;
-                uint32_t hashcode = *(uint32_t *)hashcode_pointer;
-                // 获取 key 长度
-                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
-                key_length = *(uint32_t *)key_length_pointer;
-                // 获取 value 长度
-                auto value_length_pointer = GetValueLengthPointer(start_pointer);
-                value_length = *(uint32_t *)value_length_pointer;
-
-                // 两个 hashcode 对不上，不用走下面了，直接下一个
-                if (key_hashcode != hashcode)
-                {
-                    start_pointer = Next(start_pointer, key_length, value_length);
-                    continue;
-                }
-                // 获取 key 进行匹配
-                auto key_pointer = GetKeyPointer(start_pointer);
-                if (key.compare(std::string_view(key_pointer, key_length)) == 0)
-                {
-                    // 获取 value 返回回去
-                    auto value_pointer = GetValuePointer(start_pointer, key_length);
-                    // 都不用动，直接返回 value 指针给 string_view
-                    return std::optional<std::string_view>{std::string_view(value_pointer, value_length)};
-                }
-                start_pointer = Next(start_pointer, key_length, value_length);
+                return std::optional<std::string_view>{item->value};
             }
+
             return std::nullopt;
         }
 
-        void Delete();
+        bool Delete(std::string_view key)
+        {
+            if (auto item = Find(key))
+            {
+                uint32_t required_length = RequiredLength(item->key_length, item->value_length);
+                return Delete(item->pointer, required_length);
+            }
+            return false;
+        }
+
+        bool Delete(char *start_pointer, uint32_t required_length)
+        {
+            if (start_pointer != nullptr)
+            {
+                std::fill_n(start_pointer, HEADER_HASH_CODE_SIZE, '\0');
+                *(uint32_t *)(start_pointer + HEADER_HASH_CODE_SIZE) = required_length;
+                return true;
+            }
+            return false;
+        }
+
         void Rewind();
         /// 判断 key 是否存在
         bool Exists(std::string_view key)
@@ -161,6 +161,58 @@ namespace base
             return false;
         }
 
+        std::optional<ZipMapItem> Find(std::string_view key)
+        {
+            if (used_ == 0)
+                return std::nullopt;
+
+            // 计算需要查找的 key 的 hashcode
+            uint32_t key_hashcode = hash(std::string_view(key));
+
+            uint32_t key_length = 0;
+            uint32_t value_length = 0;
+
+            // 头指针
+            auto start_pointer = buffer_.get();
+
+            while (start_pointer != nullptr)
+            {
+                // 获取 hashcode
+                auto hashcode_pointer = start_pointer;
+                uint32_t hashcode = *(uint32_t *)hashcode_pointer;
+                // 获取 key 长度
+                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                key_length = *(uint32_t *)key_length_pointer;
+                // 获取 value 长度
+                auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                value_length = *(uint32_t *)value_length_pointer;
+
+                // 两个 hashcode 对不上，不用走下面了，直接下一个
+                if (key_hashcode != hashcode)
+                {
+                    start_pointer = Next(start_pointer, key_length, value_length);
+                    continue;
+                }
+                // 获取 key 进行匹配
+                auto key_pointer = GetKeyPointer(start_pointer);
+                auto map_key = std::string_view(key_pointer, key_length);
+                if (key.compare(map_key) == 0)
+                {
+                    // 获取 value 返回回去
+                    auto value_pointer = GetValuePointer(start_pointer, key_length);
+                    return std::optional<ZipMapItem>{ZipMapItem{
+                        key: map_key,
+                        value: std::string_view(value_pointer, value_length),
+                        key_length: key_length,
+                        value_length: value_length,
+                        pointer: start_pointer
+                    }};
+                }
+                start_pointer = Next(start_pointer, key_length, value_length);
+            }
+            return std::nullopt;
+        }
+
         uint8_t Used()
         {
             return used_;
@@ -188,7 +240,7 @@ namespace base
         }
         char *GetValueLengthPointer(char *start_pointer)
         {
-            return start_pointer + HEADER_HASH_CODE_SIZE + HEADER_KEY_used_SIZE;
+            return start_pointer + HEADER_HASH_CODE_SIZE + HEADER_KEY_LENGTH_SIZE;
         }
         char *GetKeyPointer(char *start_pointer)
         {
@@ -200,7 +252,7 @@ namespace base
         }
         /// 根据数据块大小偏移指针指向指定的数据 end
         /// 计算出一个数据块所需的大小 多 2 字节隔断
-        size_t RequiredLength(uint32_t key_length, uint32_t value_length)
+        uint32_t RequiredLength(uint32_t key_length, uint32_t value_length)
         {
             return key_length + value_length + HEADER_SIZE + 2;
         }
@@ -225,6 +277,6 @@ namespace base
         uint8_t max_size_ = 255;
         uint8_t used_ = 0;
         size_t size_ = 0;
-        void *tail_pointer_ = nullptr;
     };
+
 } // namespace base
