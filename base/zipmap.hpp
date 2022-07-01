@@ -38,7 +38,7 @@ namespace base
             Set(key.data(), value.data(), key.length(), value.length());
         }
 
-        void Set(char *key, char *value)
+        void Set(const char *key, const char *value)
         {
             Set(key, value, std::strlen(key), std::strlen(value));
         }
@@ -224,7 +224,7 @@ namespace base
         {
             auto map_size = RequiredLength(key_length, value_length);
             auto distance = data_pointer - buffer_.get();
-            if (distance + map_size >= size_)
+            if (static_cast<size_t>(distance + map_size) >= size_)
                 return nullptr;
             return data_pointer + map_size;
         }
