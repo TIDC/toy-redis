@@ -253,6 +253,7 @@ namespace base
             {
                 return std::numeric_limits<int64_t>::max();
             }
+            size -= 1;
 
             // 二分查找
             auto idx = 63;
@@ -279,7 +280,7 @@ namespace base
             if (size >= 2) {
                 idx -= 1;
             }
-            return uint64_t{i}<<(63-idx);
+            return uint64_t{1}<<(64-idx);
         }
 
         /// redis function: _dictExpandIfNeeded
