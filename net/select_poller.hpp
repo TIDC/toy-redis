@@ -84,7 +84,7 @@ namespace net
             if (result > 0)
             {
                 // 遍历全部 fd，查询记录触发的事件
-                for (size_t i = 0; i <= max_fd_; i++)
+                for (int32_t i = 0; i <= max_fd_; i++)
                 {
                     int32_t events = 0;
                     events |= FD_ISSET(i, &read_fds_copy_);
