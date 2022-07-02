@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <bits/types/struct_timeval.h>
 #include <concepts>
 #include <cstddef>
 #include <functional>
@@ -27,6 +28,11 @@ namespace net
         size_t GetID()
         {
             return id_;
+        }
+
+        timeval GetTimeout()
+        {
+            return when_;
         }
 
         /// 执行定时器对象的回调函数
