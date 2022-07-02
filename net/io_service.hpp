@@ -7,10 +7,11 @@
 
 #include <any>
 #include <array>
-#include <bits/types/struct_timeval.h>
 #include <cassert>
 #include <cstdint>
 #include <queue>
+
+#include <sys/time.h>
 
 namespace net
 {
