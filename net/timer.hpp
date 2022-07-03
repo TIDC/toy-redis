@@ -29,6 +29,11 @@ namespace net
             return id_;
         }
 
+        timeval GetTimeout()
+        {
+            return when_;
+        }
+
         /// 执行定时器对象的回调函数
         void operator()()
         {
