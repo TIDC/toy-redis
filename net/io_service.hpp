@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base/marco.hpp"
+#include "base/time_helper.hpp"
 #include "net/concepts/poller.hpp"
 #include "net/constants.hpp"
 #include "net/timer.hpp"
@@ -9,7 +10,9 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <memory>
 #include <queue>
+#include <vector>
 
 #include <sys/time.h>
 
@@ -23,6 +26,8 @@ namespace net
     {
         using EventHandler =
             std::function<void(int32_t, int32_t, const std::any &)>;
+
+        using TimeQueue = std::priority_queue<std::shared_ptr<Timer>>;
 
         struct FileEvent
         {
@@ -63,7 +68,10 @@ namespace net
 
         /// redis funciton: aeCreateTimeEvent
         /// 新增定时器，返回定时器 id
-        size_t SetTimeout(std::function<void()> callback, uint64_t timeout_ms);
+        size_t SetTimeout(std::function<void()> callback, uint64_t timeout_ms)
+        {
+            timer_queue_.emplace(std::move(callback), timeout_ms);
+        }
 
         /// redis function: aeDeleteTimeEvent
         /// 取消定时器，如果定时器还存在，返回 true
@@ -73,11 +81,44 @@ namespace net
         /// redis function: aeSearchNearestTimer
         /// 获取最近即将超时的定时器的等待时间
         /// 如果没有等待的定时器，返回 timeval{-1, -1}
-        timeval GetNearestTimerTimeout();
+        timeval GetNearestTimerTimeout()
+        {
+            if (timer_queue_.empty())
+            {
+                return {-1, -1};
+            }
+
+            return timer_queue_.top()->GetTimeout();
+        }
 
         /// redis function: processTimeEvents
         /// 处理超时的定时器，返回被处理的定时器数量
-        size_t ProcessTimeoutTimer();
+        size_t ProcessTimeoutTimer()
+        {
+            auto now = base::Now();
+            // 如果发现系统时间被回拨，直接清空全部定时器
+            auto rollover = CheckClockRollover(now);
+
+            std::vector<std::shared_ptr<Timer>> timers;
+            timers.reserve(16);
+
+            // while (!timer_queue_.empty())
+            // {
+            //     const auto &top_timer = timer_queue_.top();
+
+            //         timers.emplace_back(timer_queue_.top());
+            //     timer_queue_.pop();
+            // }
+
+            // size_t count = 0;
+            // for (auto &t : timers)
+            // {
+            //     (*t)();
+            //     count++;
+            // }
+
+            // return count;
+        }
 
         /// redis function: aeProcessEvents
         /// 处理 poller_ 等待到的IO事件，返回被处理的事件数量
@@ -90,10 +131,29 @@ namespace net
         void MainLoop();
 
     private:
+        /// 检测系统时间是否回拨
+        bool CheckClockRollover(const timeval &now)
+        {
+            using base::timeval_operator::operator<;
+            using base::timeval_operator::operator-;
+
+            bool result = false;
+            /// 现在的时间比上一次检测的时间小，并且小了超过 30 分钟，就认为系统时间被回拨
+            if (now < last_rollover_check_time_ &&
+                base::ToSeconds(last_rollover_check_time_ - now) > 1800)
+            {
+                result = true;
+            }
+            last_rollover_check_time_ = now;
+            return result;
+        }
+
         PollerType poller_{};
+        /// 最近一检测系统是否被回拨的时间
+        timeval last_rollover_check_time_{};
         /// 注册的 fd 和 事件处理对象
         std::array<FileEvent, MAX_NUMBER_OF_FD> events_{};
-        std::priority_queue<Timer> timer_queue_{};
+        TimeQueue timer_queue_{};
         bool stop_{false};
     };
 
