@@ -13,7 +13,7 @@ add_subdirectory(tests)
 add_executable(
     ${PROJECT_NAME}
     main.cpp
-)
+        net/epoll_poller.hpp)
 
 target_include_directories(
     ${PROJECT_NAME} PRIVATE 
