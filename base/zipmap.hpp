@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <cstdint>
 #include <optional>
 #include <string_view>
 
@@ -24,6 +24,12 @@ namespace base
         uint32_t key_length;
         uint32_t value_length;
         char *pointer = nullptr;
+
+        void Cout()
+        {
+            std::cout << "key: " << key << " value: " << value
+                      << " key_length: " << key_length << " value_length: " << value_length << std::endl;
+        }
     };
 
     class ZipMap
@@ -86,38 +92,68 @@ namespace base
         // 根据 key 获取 value
         std::optional<std::string_view> Get(std::string_view key)
         {
-
             if (auto item = Find(key))
-            {
                 return std::optional<std::string_view>{item->value};
-            }
-
             return std::nullopt;
         }
 
         bool Delete(std::string_view key)
         {
-            if (auto item = Find(key))
+            auto item = Find(key);
+            if (item && item->pointer != nullptr)
             {
                 uint32_t required_length = RequiredLength(item->key_length, item->value_length);
-                return Delete(item->pointer, required_length);
-            }
-            return false;
-        }
-
-        bool Delete(char *start_pointer, uint32_t required_length)
-        {
-            if (start_pointer != nullptr)
-            {
-                std::fill_n(start_pointer, HEADER_HASH_CODE_SIZE, '\0');
-                *(uint32_t *)(start_pointer + HEADER_HASH_CODE_SIZE) = required_length;
+                item->pointer[0] = '\0';
                 used_ -= 1;
+                wait_freed_ += required_length;
                 return true;
             }
             return false;
         }
 
         void Rewind();
+
+        /// 压缩空间
+        void Zip()
+        {
+            if (size_ == 0 || wait_freed_ == 0)
+                return;
+
+            auto new_size = size_ - wait_freed_;
+            if (new_size <= 0)
+            {
+                buffer_ = nullptr;
+                return;
+            }
+            auto new_buffer = std::make_unique<char[]>(new_size);
+
+            auto start_pointer = buffer_.get();
+            auto new_start_pointer = new_buffer.get();
+            while (start_pointer != nullptr)
+            {
+                // 获取 key 长度
+                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                auto key_length = *(uint32_t *)key_length_pointer;
+                // 获取 value 长度
+                auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                auto value_length = *(uint32_t *)value_length_pointer;
+                auto required_length = RequiredLength(key_length, value_length);
+                if (start_pointer[0] != '\0')
+                {
+                    std::copy_n(start_pointer, required_length, new_start_pointer);
+                    new_start_pointer = new_start_pointer + required_length;
+                }
+
+                if (static_cast<size_t>((start_pointer - buffer_.get()) + required_length) >= size_)
+                    break;
+
+                start_pointer = start_pointer + required_length;
+            }
+            buffer_ = std::move(new_buffer);
+            size_ = new_size;
+            wait_freed_ = 0;
+        }
+
         /// 判断 key 是否存在
         bool Exists(std::string_view key)
         {
@@ -195,7 +231,6 @@ namespace base
                 auto map_key = std::string_view(key_pointer, key_length);
                 if (key.compare(map_key) == 0)
                 {
-                    // 获取 value 返回回去
                     auto value_pointer = GetValuePointer(start_pointer, key_length);
                     return std::optional<ZipMapItem>{ZipMapItem{
                         .key = map_key,
@@ -273,6 +308,7 @@ namespace base
         uint8_t max_size_ = 255;
         uint8_t used_ = 0;
         size_t size_ = 0;
+        size_t wait_freed_ = 0;
     };
 
 } // namespace base
