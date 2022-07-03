@@ -95,7 +95,7 @@ TEST(SDS, ZipMapZip)
     ASSERT_EQ(zmap.Exists(std::string_view("王花花")), true);
     auto old_size = zmap.Size();
 
-    for (int i; i < 1000; i++)
+    for (int i = 0; i < 1000; i++)
     {
         zmap.Zip();
     }
