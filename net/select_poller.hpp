@@ -102,7 +102,7 @@ namespace net
 
         /// 传入一个可调用实例，处理全部触发了读写事件的 fd
         /// 参数 fn 的类型是 void(FiredEvent)
-        template <std::invocable Consumer>
+        template <std::invocable<FiredEvent> Consumer>
         void ConsumeAll(Consumer fn)
         {
             while (!fired_fds_.Empty())
@@ -132,7 +132,7 @@ namespace net
         fd_set write_fds_{};
         fd_set read_fds_copy_{};
         fd_set write_fds_copy_{};
-
+        // select() 返回后触发了 io 事件的 fd 队列
         base::RingQueue<FiredEvent, MAX_NUMBER_OF_FD> fired_fds_;
     };
 
