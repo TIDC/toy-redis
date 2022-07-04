@@ -31,6 +31,18 @@ namespace base
         return (t.tv_sec * 1000 * 1000) + t.tv_usec;
     }
 
+    /// 获取当前毫秒数
+    inline int64_t NowMilliseconds()
+    {
+        return ToMilliseconds(Now());
+    }
+
+    /// 获取当前微秒数
+    inline int64_t NowMicroseconds()
+    {
+        return ToMicroseconds(Now());
+    }
+
     inline timeval MicrosecondsToTimeval(int64_t ms)
     {
         auto tv = timeval{};
@@ -58,7 +70,7 @@ namespace base
 
     inline timeval Subtract(const timeval &t1, const timeval &t2)
     {
-        return {t1.tv_sec - t2.tv_sec, t2.tv_usec - t2.tv_usec};
+        return {t1.tv_sec - t2.tv_sec, t1.tv_usec - t2.tv_usec};
     }
 
     inline bool Less(const timeval &t1, const timeval &t2)
