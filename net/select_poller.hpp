@@ -67,6 +67,7 @@ namespace net
 
         int32_t Poll(uint64_t timeout_ms)
         {
+            assert(timeout_ms >= 0);
             // 传递给 select() 用的 fd_set 是一次性的，想要安全重用就得复制一份给 select()
             std::memcpy(&read_fds_copy_, &read_fds_, sizeof(fd_set));
             std::memcpy(&write_fds_copy_, &write_fds_, sizeof(fd_set));

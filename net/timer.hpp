@@ -94,15 +94,13 @@ namespace net
         /// 比较大小，比较的是绝对超时时间的大小
         bool operator<(const Timer &other) const
         {
-            using namespace base::timeval_operator;
-            return timeout_ < other.timeout_;
+            return base::Less(timeout_, other.timeout_);
         }
 
         bool operator<=(const Timer &other) const
         {
-            // timeval 的 operator< 重载在 base 命名空间下
-            using namespace base::timeval_operator;
-            return timeout_ <= other.timeout_;
+            return base::Less(timeout_, other.timeout_) ||
+                   base::Equal(timeout_, other.timeout_);
         }
 
         /// 取消定时器
