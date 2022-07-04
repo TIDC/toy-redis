@@ -7,7 +7,7 @@
     ((static_cast<bool>(expr))              \
          ? (base::AbortOutputStream{false}) \
          : (base::AbortOutputStream{true})) \
-        << "[ASSERT '" << #expr << "' ERROR] "
+        << "[!!!!!! ASSERT '" << #expr << "' ERROR !!!!!!]"
 
 namespace base
 {
@@ -32,6 +32,12 @@ namespace base
         {
             if (work_)
             {
+                output_count_++;
+                if (output_count_ == 4)
+                {
+                    std::cerr << std::endl
+                              << "what: ";
+                }
                 std::cerr << item;
             }
             return *this;
@@ -39,6 +45,7 @@ namespace base
 
     private:
         bool work_ = false;
+        size_t output_count_ = 0;
     };
 
 } // namespace base
