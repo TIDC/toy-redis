@@ -48,50 +48,28 @@ namespace base
         }
     }
 
-    // timeval 相关运算符重载的命名空间
-    namespace timeval_operator
+    inline timeval Subtract(const timeval &t1, const timeval &t2)
     {
-        /// 两个 timeval 相减
-        inline timeval operator-(const timeval &t1, const timeval &t2)
+        return {t1.tv_sec - t2.tv_sec, t2.tv_usec - t2.tv_usec};
+    }
+
+    inline bool Less(const timeval &t1, const timeval &t2)
+    {
+        if (t1.tv_sec < t2.tv_sec)
         {
-            return {t1.tv_sec - t2.tv_sec, t2.tv_usec - t2.tv_usec};
+            return true;
         }
 
-        /// 两个 timeval 比较
-        inline bool operator<(const timeval &t1, const timeval &t2)
+        if (t1.tv_sec == t2.tv_sec && t1.tv_usec < t2.tv_usec)
         {
-            if (t1.tv_sec < t2.tv_sec)
-            {
-                return true;
-            }
-
-            if (t1.tv_sec == t2.tv_sec && t1.tv_usec < t2.tv_usec)
-            {
-                return true;
-            }
-
-            return false;
+            return true;
         }
 
-        inline bool operator<(timeval &&t1, timeval &&t2)
-        {
-            if (t1.tv_sec < t2.tv_sec)
-            {
-                return true;
-            }
+        return false;
+    }
 
-            if (t1.tv_sec == t2.tv_sec && t1.tv_usec < t2.tv_usec)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        inline bool operator<=(const timeval &t1, const timeval &t2)
-        {
-            return (t1 < t2) || (t1.tv_sec == t2.tv_sec && t1.tv_usec == t2.tv_usec);
-        }
-    } // namespace timeval_operator
-
+    inline bool Equal(const timeval &t1, const timeval &t2)
+    {
+        return (t1.tv_sec == t2.tv_sec) && (t1.tv_usec == t2.tv_usec);
+    }
 } // namespace base
