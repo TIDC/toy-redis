@@ -28,8 +28,14 @@ namespace base
         void Cout()
         {
             std::cout << "key: " << key << " value: " << value
-                        << " key_length: " << key_length << " value_length: " << value_length << std::endl;
+                      << " key_length: " << key_length << " value_length: " << value_length << std::endl;
         }
+    };
+
+    struct ZipMapIndex
+    {
+        uint32_t hashcode;
+        uint32_t offset;
     };
 
     class ZipMap
@@ -55,8 +61,8 @@ namespace base
         {
             auto key_view = std::string_view(key);
 
-            if (Exists(key_view) || used_ == max_size_)
-                return false;
+            // if (Exists(key_view) || used_ == max_size_)
+            //     return false;
 
             // 计算插入元素所需长度
             auto required_length = RequiredLength(key_length, value_length);
@@ -66,9 +72,10 @@ namespace base
 
             // 直接把新元素放到后面
             auto start_pointer = buffer_.get() + old_size;
-
             // 对key进行哈希计算
             uint32_t hashcode = hash(key_view);
+            AddIndex(hashcode, old_size);
+
             auto hashcode_pointer = start_pointer;
             *(uint32_t *)hashcode_pointer = hashcode;
             // 获取存储key的长度的起始位置
@@ -89,7 +96,7 @@ namespace base
             return true;
         }
 
-        // 根据 key 获取 value
+        // // 根据 key 获取 value
         std::optional<std::string_view> Get(std::string_view key)
         {
             if (auto item = Find(key))
@@ -106,6 +113,7 @@ namespace base
                 item->pointer[0] = '\0';
                 used_ -= 1;
                 wait_freed_ += required_length;
+                DelIndex(hash(key), item->pointer);
                 return true;
             }
             return false;
@@ -126,9 +134,12 @@ namespace base
                 return;
             }
             auto new_buffer = std::make_unique<char[]>(new_size);
+            auto new_index = std::make_unique<ZipMapIndex[]>(index_size_);
 
             auto start_pointer = buffer_.get();
             auto new_start_pointer = new_buffer.get();
+            auto new_index_start = 0;
+            auto new_inde_offset = 0;
             while (start_pointer != nullptr)
             {
                 // 获取 key 长度
@@ -141,15 +152,22 @@ namespace base
                 if (start_pointer[0] != '\0')
                 {
                     std::copy_n(start_pointer, required_length, new_start_pointer);
-                    new_start_pointer = new_start_pointer + required_length;
+                    uint32_t hashcode = *(uint32_t *)start_pointer;
+                    new_index[new_index_start] = ZipMapIndex{
+                        .hashcode = hashcode,
+                        .offset = new_inde_offset};
+                    new_index_start++;
+                    new_inde_offset += required_length;
+                    new_start_pointer += required_length;
                 }
 
                 if (static_cast<size_t>((start_pointer - buffer_.get()) + required_length) >= size_)
                     break;
 
-                start_pointer = start_pointer + required_length;
+                start_pointer += required_length;
             }
             buffer_ = std::move(new_buffer);
+            index_ = std::move(new_index);
             size_ = new_size;
             wait_freed_ = 0;
         }
@@ -157,41 +175,7 @@ namespace base
         /// 判断 key 是否存在
         bool Exists(std::string_view key)
         {
-            if (used_ == 0)
-                return false;
-
-            uint32_t key_hashcode = hash(std::string_view(key));
-
-            uint32_t key_length = 0;
-            uint32_t value_length = 0;
-
-            auto start_pointer = buffer_.get();
-
-            while (start_pointer != nullptr)
-            {
-                auto hashcode_pointer = start_pointer;
-                uint32_t hashcode = *(uint32_t *)hashcode_pointer;
-
-                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
-                key_length = *(uint32_t *)key_length_pointer;
-
-                auto value_length_pointer = GetValueLengthPointer(start_pointer);
-                value_length = *(uint32_t *)value_length_pointer;
-
-                if (key_hashcode != hashcode)
-                {
-                    start_pointer = Next(start_pointer, key_length, value_length);
-                    continue;
-                }
-
-                auto key_pointer = GetKeyPointer(start_pointer);
-                if (key.compare(std::string_view(key_pointer, key_length)) == 0)
-                {
-                    return true;
-                }
-                start_pointer = Next(start_pointer, key_length, value_length);
-            }
-            return false;
+            return Find(key) != std::nullopt;
         }
 
         std::optional<ZipMapItem> Find(std::string_view key)
@@ -202,46 +186,74 @@ namespace base
             // 计算需要查找的 key 的 hashcode
             uint32_t key_hashcode = hash(std::string_view(key));
 
-            uint32_t key_length = 0;
-            uint32_t value_length = 0;
-
-            // 头指针
-            auto start_pointer = buffer_.get();
-
-            while (start_pointer != nullptr)
+            // index 查询流程
+            for (int i = 0; i < index_used_; i++)
             {
-                // 获取 hashcode
-                auto hashcode_pointer = start_pointer;
-                uint32_t hashcode = *(uint32_t *)hashcode_pointer;
-                // 获取 key 长度
-                auto key_length_pointer = GetKeyLengthPointer(start_pointer);
-                key_length = *(uint32_t *)key_length_pointer;
-                // 获取 value 长度
-                auto value_length_pointer = GetValueLengthPointer(start_pointer);
-                value_length = *(uint32_t *)value_length_pointer;
+                if (index_[i].hashcode != 0 && index_[i].hashcode == key_hashcode)
+                {
+                    auto start_pointer = buffer_.get() + index_[i].offset;
+                    auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+                    uint32_t key_length = *(uint32_t *)key_length_pointer;
 
-                // 两个 hashcode 对不上，不用走下面了，直接下一个
-                if (key_hashcode != hashcode)
-                {
-                    start_pointer = Next(start_pointer, key_length, value_length);
-                    continue;
+                    auto key_pointer = GetKeyPointer(start_pointer);
+                    auto map_key = std::string_view(key_pointer, key_length);
+                    if (key.compare(map_key) == 0)
+                    {
+                        auto value_length_pointer = GetValueLengthPointer(start_pointer);
+                        auto value_length = *(uint32_t *)value_length_pointer;
+
+                        auto value_pointer = GetValuePointer(start_pointer, key_length);
+                        return std::optional<ZipMapItem>{ZipMapItem{
+                            .key = map_key,
+                            .value = std::string_view(value_pointer, value_length),
+                            .key_length = key_length,
+                            .value_length = value_length,
+                            .pointer = start_pointer}};
+                    }
                 }
-                // 获取 key 进行匹配
-                auto key_pointer = GetKeyPointer(start_pointer);
-                auto map_key = std::string_view(key_pointer, key_length);
-                if (key.compare(map_key) == 0)
-                {
-                    auto value_pointer = GetValuePointer(start_pointer, key_length);
-                    return std::optional<ZipMapItem>{ZipMapItem{
-                        .key = map_key,
-                        .value = std::string_view(value_pointer, value_length),
-                        .key_length = key_length,
-                        .value_length = value_length,
-                        .pointer = start_pointer}};
-                }
-                start_pointer = Next(start_pointer, key_length, value_length);
             }
             return std::nullopt;
+
+            // uint32_t key_length = 0;
+            // uint32_t value_length = 0;
+
+            // // 头指针
+            // auto start_pointer = buffer_.get();
+
+            // while (start_pointer != nullptr)
+            // {
+            //     // 获取 hashcode
+            //     auto hashcode_pointer = start_pointer;
+            //     uint32_t hashcode = *(uint32_t *)hashcode_pointer;
+            //     // 获取 key 长度
+            //     auto key_length_pointer = GetKeyLengthPointer(start_pointer);
+            //     key_length = *(uint32_t *)key_length_pointer;
+            //     // 获取 value 长度
+            //     auto value_length_pointer = GetValueLengthPointer(start_pointer);
+            //     value_length = *(uint32_t *)value_length_pointer;
+
+            //     // 两个 hashcode 对不上，不用走下面了，直接下一个
+            //     if (key_hashcode != hashcode)
+            //     {
+            //         start_pointer = Next(start_pointer, key_length, value_length);
+            //         continue;
+            //     }
+            //     // 获取 key 进行匹配
+            //     auto key_pointer = GetKeyPointer(start_pointer);
+            //     auto map_key = std::string_view(key_pointer, key_length);
+            //     if (key.compare(map_key) == 0)
+            //     {
+            //         auto value_pointer = GetValuePointer(start_pointer, key_length);
+            //         return std::optional<ZipMapItem>{ZipMapItem{
+            //             .key = map_key,
+            //             .value = std::string_view(value_pointer, value_length),
+            //             .key_length = key_length,
+            //             .value_length = value_length,
+            //             .pointer = start_pointer}};
+            //     }
+            //     start_pointer = Next(start_pointer, key_length, value_length);
+            // }
+            // return std::nullopt;
         }
 
         uint8_t Used()
@@ -296,17 +308,51 @@ namespace base
         void Resize(size_t size)
         {
             auto new_buffer = std::make_unique<char[]>(size);
-            std::fill_n(new_buffer.get(), size, '\0');
             if (buffer_ != nullptr)
                 std::copy_n(buffer_.get(), size, new_buffer.get());
             buffer_ = std::move(new_buffer);
             size_ = size;
         }
 
+        void AddIndex(uint32_t hashcode, uint32_t offset)
+        {
+            if (index_used_ + 1 >= index_size_)
+            {
+                index_size_ += 10;
+                if (index_size_ >= max_size_)
+                    index_size_ = max_size_;
+                auto new_index = std::make_unique<ZipMapIndex[]>(index_size_);
+                if (index_ != nullptr)
+                    std::copy_n(index_.get(), index_used_, new_index.get());
+                index_ = std::move(new_index);
+            }
+
+            index_[index_used_] = ZipMapIndex{
+                .hashcode = hashcode,
+                .offset = offset};
+            index_used_++;
+        }
+
+        void DelIndex(uint32_t hashcode, char *pointer)
+        {
+            // index 查询流程
+            for (int i = 0; i < index_used_; i++)
+            {
+                if (index_.get()[i].hashcode == hashcode && buffer_.get() + index_.get()[i].offset == pointer)
+                {
+                    index_.get()[i].hashcode = 0;
+                    return;
+                }
+            }
+        }
+
     private:
         std::unique_ptr<char[]> buffer_ = nullptr;
-        uint8_t max_size_ = 255;
+        std::unique_ptr<ZipMapIndex[]> index_ = nullptr;
+        uint8_t max_size_ = 64;
         uint8_t used_ = 0;
+        uint8_t index_used_ = 0;
+        uint8_t index_size_ = 0;
         size_t size_ = 0;
         size_t wait_freed_ = 0;
     };
