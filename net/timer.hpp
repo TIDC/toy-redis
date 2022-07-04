@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/checker.hpp"
 #include "base/marco.hpp"
 #include "base/time_helper.hpp"
 #include "net/timer.hpp"
@@ -97,15 +98,15 @@ namespace net
             }
         }
 
-        /// 比较大小，比较的是绝对超时时间的大小
+        /// 比较大小，优先队列中时间小的排前面
         bool operator<(const Timer &other) const
         {
-            return base::Less(timeout_, other.timeout_);
+            return base::Less(other.timeout_, timeout_);
         }
 
         bool operator<=(const Timer &other) const
         {
-            return base::Less(timeout_, other.timeout_) ||
+            return base::Less(other.timeout_, timeout_) ||
                    base::Equal(timeout_, other.timeout_);
         }
 
