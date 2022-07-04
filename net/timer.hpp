@@ -75,6 +75,12 @@ namespace net
             return timeout_;
         }
 
+        /// 是否为周期定时器
+        bool IsCircle()
+        {
+            return need_circle_;
+        }
+
         /// 更新周期定时器的超时的绝对时间到下一轮时间
         void UpdateNextCircle()
         {

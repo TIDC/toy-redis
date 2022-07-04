@@ -4,6 +4,7 @@
 #include "base/time_helper.hpp"
 #include "net/concepts/poller.hpp"
 #include "net/constants.hpp"
+#include "net/default_poller.hpp"
 #include "net/timer.hpp"
 
 #include <any>
@@ -12,8 +13,11 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <queue>
+#include <thread>
 #include <vector>
+#include <iostream>
 
 #include <sys/time.h>
 
@@ -22,7 +26,7 @@ namespace net
 
     /// 对应 redis 的 ae.h 和 ae.c
     /// 实现事件循环和提供事件监听接口
-    template <Poller PollerType>
+    template <Poller PollerType = DefaultPoller>
     class IOService
     {
         using EventHandler =
@@ -40,7 +44,16 @@ namespace net
     public:
         DISABLE_COPY(IOService);
 
+        // TODO 移动构造和赋值的实现
+
         IOService() = default;
+
+        void Run()
+        {
+            assert(!owner_thread_id_.has_value() && "不允许重复调用");
+            owner_thread_id_ = std::this_thread::get_id();
+            MainLoop();
+        }
 
         /// redis function: aeStop
         void Stop()
@@ -71,7 +84,25 @@ namespace net
         /// 新增定时器，返回定时器 id
         size_t SetTimeout(std::function<void()> callback, uint64_t timeout_ms)
         {
-            timer_queue_.emplace(std::move(callback), timeout_ms);
+            auto timer_ptr =
+                std::make_shared<Timer>(std::move(callback), timeout_ms);
+            assert(timer_ptr);
+
+            auto id = timer_ptr->GetID();
+            timer_queue_.emplace(std::move(timer_ptr));
+            return id;
+        }
+
+        /// 新增周期定时器，返回定时器 id
+        size_t SetInterval(std::function<void()> callback, uint64_t timeout_ms)
+        {
+            auto timer_ptr =
+                std::make_shared<Timer>(std::move(callback), timeout_ms, true);
+            assert(timer_ptr);
+
+            auto id = timer_ptr->GetID();
+            timer_queue_.emplace(std::move(timer_ptr));
+            return id;
         }
 
         /// redis function: aeDeleteTimeEvent
@@ -80,16 +111,21 @@ namespace net
 
     private:
         /// redis function: aeSearchNearestTimer
-        /// 获取最近即将超时的定时器的超时时间
-        /// 如果没有等待的定时器，返回 timeval{INT64_MAX, 0}
-        timeval GetNearestTimerTimeout()
+        /// 获取最近即将超时的定时器的等待时间，单位毫秒
+        /// 如果没有等待的定时器，返回 DEFAULT_TIMEOUT_MS
+        /// 如果已经有超时的定时器，返回 0
+        int64_t GetNearestTimerTimeout(const timeval &now)
         {
             if (timer_queue_.empty())
             {
-                return {std::numeric_limits<int64_t>::max(), 0};
+                return DEFAULT_TIMEOUT_MS;
             }
 
-            return timer_queue_.top()->GetTimeout();
+            auto next_timer_tv = timer_queue_.top()->GetTimeout();
+            auto timeout_tv = base::Subtract(next_timer_tv, now);
+            auto timeout_ms = base::ToMilliseconds(timeout_tv);
+
+            return timeout_ms > 0 ? timeout_ms : 0;
         }
 
         /// redis function: processTimeEvents
@@ -133,6 +169,13 @@ namespace net
             {
                 (*t)();
                 count++;
+
+                // 如果是周期定时器，更新超时时间重新放回 timer_queue_
+                if (t->IsCircle())
+                {
+                    t->UpdateNextCircle();
+                    timer_queue_.emplace(std::move(t));
+                }
             }
 
             return count;
@@ -153,22 +196,8 @@ namespace net
             while (!stop_)
             {
                 auto now = base::Now();
-                auto next_timer_timeout = GetNearestTimerTimeout();
-                auto poller_timout = timeval{};
-                auto poller_timout_ms = DEFAULT_TIMEOUT;
-                if (next_timer_timeout != std::numeric_limits<int64_t>::max())
-                {
-                    poller_timout = base::Subtract(next_timer_timeout, now);
-                    poller_timout_ms = base::ToMilliseconds(poller_timout);
-                }
-
-                if (poller_timout_ms < 0)
-                {
-                    poller_timout_ms = 0;
-                }
-
-                auto active_event_size = poller_.Poll(poller_timout_ms);
-
+                auto poller_timout_ms = GetNearestTimerTimeout(now);
+                /*auto active_event_size = */ poller_.Poll(poller_timout_ms);
                 ProcessTimeoutTimer();
             }
         }
@@ -188,11 +217,23 @@ namespace net
                 }
             }
             last_rollover_check_time_ = now;
+            if (result)
+            {
+                std::cerr << "WARN: 系统时间回拨" << std::endl;
+            }
             return result;
         }
 
-        static constexpr int64_t DEFAULT_TIMEOUT = 1000;
+        /// 检测 io_service 是否被跨线程使用，是就崩溃
+        bool CheckCrossThread()
+        {
+        }
 
+        /// 默认的 poller 超时时间，单位毫秒
+        static constexpr int64_t DEFAULT_TIMEOUT_MS = 1000;
+
+        /// 持有 io_service 的线程的 id
+        std::optional<std::thread::id> owner_thread_id_{std::nullopt};
         PollerType poller_{};
         /// 最近一检测系统是否被回拨的时间
         timeval last_rollover_check_time_{};

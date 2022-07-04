@@ -55,7 +55,7 @@ TEST(poller, SelectPoller)
     while (true)
     {
         gettimeofday(&now, nullptr);
-        if ((now.tv_sec - begin.tv_sec) >= 4)
+        if ((now.tv_sec - begin.tv_sec) >= 2)
         {
             break;
         }

@@ -10,17 +10,17 @@ if (NOT GTest_FOUND)
 endif()
 
 # SDS 单元测试
-# create_test(
-#     TEST_sds
-#     FILES test_sds.cpp
-#     LIBS gtest_main
-# )
+create_test(
+    TEST_sds
+    FILES test_sds.cpp
+    LIBS gtest_main
+)
 
-# create_test(
-#     TEST_ref_optional
-#     FILES test_reference_optional.cpp
-#     LIBS gtest_main
-# )
+create_test(
+    TEST_ref_optional
+    FILES test_reference_optional.cpp
+    LIBS gtest_main
+)
 
 create_test(
     TEST_zipmap
@@ -34,8 +34,14 @@ create_test(
     LIBS gtest_main
 )
 
-# create_test(
-#     TEST_poller
-#     FILES test_poller.cpp
-#     LIBS gtest_main
-# )
+create_test(
+    TEST_poller
+    FILES test_poller.cpp
+    LIBS gtest_main
+)
+
+create_test(
+    TEST_timer
+    FILES test_timer.cpp
+    LIBS gtest_main
+)

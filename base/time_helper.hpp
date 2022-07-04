@@ -31,6 +31,14 @@ namespace base
         return (t.tv_sec * 1000 * 1000) + t.tv_usec;
     }
 
+    inline timeval MicrosecondsToTimeval(int64_t ms)
+    {
+        auto tv = timeval{};
+        tv.tv_sec = ms / 1000;
+        tv.tv_usec = (ms % 1000) * 1000;
+        return tv;
+    }
+
     /// timeval 加上毫秒时间
     inline void AddMilliseconds(timeval &tv, int64_t ms)
     {
