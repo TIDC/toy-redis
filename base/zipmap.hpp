@@ -138,8 +138,8 @@ namespace base
 
             auto start_pointer = buffer_.get();
             auto new_start_pointer = new_buffer.get();
-            auto new_index_start = 0;
-            auto new_inde_offset = 0;
+            auto new_index_start = uint32_t{0};
+            auto new_inde_offset = uint32_t{0};
             while (start_pointer != nullptr)
             {
                 // 获取 key 长度
