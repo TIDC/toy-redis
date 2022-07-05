@@ -46,10 +46,29 @@ namespace net
             return 0;
         }
 
+        void DeleteEvent(int32_t fd, int32_t events)
+        {
+            epoll_event ee;
+            int mask = fdEvent[fd].mask_ & (~events);
+
+            ee.events = 0;
+
+            if (mask & Event::Read) ee.events |= EPOLLIN;
+            if (mask & Event::Write) ee.events |= EPOLLOUT;
+
+            ee.data.fd = fd;
+            if (mask != Event::None) {
+                epoll_ctl(epfd_, EPOLL_CTL_MOD, fd, &ee);
+            }else {
+                epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, &ee);
+            }
+        }
+
+
     private:
         int epfd_{-1};
         int max_fd_{-1};
         struct FdEvent fdEvent[MAX_NUMBER_OF_FD];
-
+        struct epoll_event eEvents[MAX_NUMBER_OF_FD];
     };
 }
