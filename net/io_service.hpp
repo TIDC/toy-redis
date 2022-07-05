@@ -33,9 +33,17 @@ namespace net
     template <Poller PollerType = DefaultPoller>
     class IOService
     {
+        /// IO 事件处理函数类型，参数 1 是 fd，参数 2 是事件值，参数 3 是注册时填充的数据
         using EventHandler =
             std::function<void(int32_t, int32_t, const std::any &)>;
 
+        /// poller 阻塞前的回调函数类型，接收当前的 IOService 实例的引用作为参数
+        using BeforeSleepCallback = std::function<void(IOService &)>;
+
+        /// 自定义任务队列
+        using PendingTaskQueue = std::vector<std::function<void(IOService &)>>;
+
+        /// 定时器队列类型，最小堆，按超时时间排序
         using TimerQueue = std::priority_queue<std::shared_ptr<Timer>>;
 
         struct FileEvent
@@ -56,6 +64,7 @@ namespace net
         {
             assert(!owner_thread_id_.has_value() && "不允许重复调用");
             owner_thread_id_ = std::this_thread::get_id();
+            std::cout << "[ 启动 IOService ] tid=" << std::this_thread::get_id() << std::endl;
             MainLoop();
         }
 
@@ -63,6 +72,20 @@ namespace net
         void Stop()
         {
             stop_ = true;
+            std::cout << "[ 关闭 IOService ] tid=" << std::this_thread::get_id() << std::endl;
+        }
+
+        /// 设置 poller 阻塞等待前的回调函数
+        void SetBeforeSleepCallback(BeforeSleepCallback functor)
+        {
+            befer_sleep_callback_ = std::move(functor);
+        }
+
+        /// 添加自定义任务到 IOService 内等待下一轮事件循环运行
+        void RunInLoop(std::function<void(IOService &)> functor)
+        {
+            CheckCrossThread();
+            pending_task_queue_.emplace_back(std::move(functor));
         }
 
         /// redis function: aeCreateFileEvent
@@ -198,6 +221,19 @@ namespace net
         /// 处理 poller_ 等待到的IO事件，返回被处理的事件数量
         size_t ProcessEvents()
         {
+            return 0;
+        }
+
+        /// 处理自定义任务队列
+        void ProcessPendingTask()
+        {
+            PendingTaskQueue tasks{};
+            tasks.reserve(pending_task_queue_.size());
+            tasks.swap(pending_task_queue_);
+            for (const auto &task : tasks)
+            {
+                task(*this);
+            }
         }
 
         /// redis function: aeMain
@@ -208,10 +244,23 @@ namespace net
         {
             while (!stop_)
             {
+                if (befer_sleep_callback_)
+                {
+                    befer_sleep_callback_(*this);
+                }
                 auto now = base::Now();
                 auto poller_timout_ms = GetNearestTimerTimeout(now);
+                // 如果自定义任务队列有任务在等，让 poller 立即返回
+                if (!pending_task_queue_.empty())
+                {
+                    poller_timout_ms = 0;
+                }
+
                 /*auto active_event_size = */ poller_.Poll(poller_timout_ms);
+
                 ProcessTimeoutTimer();
+                ProcessEvents();
+                ProcessPendingTask();
             }
         }
 
@@ -258,15 +307,18 @@ namespace net
 
         /// 持有 io_service 的线程的 id
         std::optional<std::thread::id> owner_thread_id_{std::nullopt};
+        /// IO 事件监听器
         PollerType poller_{};
         /// 最近一检测系统是否被回拨的时间
         timeval last_rollover_check_time_{};
+        /// poller 阻塞等待前的回调函数
+        BeforeSleepCallback befer_sleep_callback_;
         /// 注册的 fd 和 事件处理对象
         std::array<FileEvent, MAX_NUMBER_OF_FD> events_{};
-        /// 定时器队列，最小堆实现
+        /// 定时器队列
         TimerQueue timer_queue_{};
         /// 自定义任务队列
-
+        PendingTaskQueue pending_task_queue_{};
         bool stop_{false};
     };
 
