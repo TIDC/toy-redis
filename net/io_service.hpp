@@ -138,7 +138,7 @@ namespace net
             auto rollover = CheckClockRollover(now);
 
             // 系统时间正常，并且没有定时器超时
-            if (!rollover && base::Less(now, timer_queue_.top()->GetTimeout()))
+            if (!rollover && timer_queue_.empty())
             {
                 return 0;
             }
