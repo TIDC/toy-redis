@@ -26,7 +26,10 @@ namespace net
 {
 
     /// 对应 redis 的 ae.h 和 ae.c
-    /// 实现事件循环和提供事件监听接口
+    /// 实现事件循环，提供事件监听和定时任务接口
+    ///
+    /// IOService 调用 Run() 开始工作后，所有其他成员函数都必须在调用 Run() 的线程上调用，
+    /// 禁止跨线程使用。
     template <Poller PollerType = DefaultPoller>
     class IOService
     {
@@ -67,6 +70,7 @@ namespace net
         bool AddEventListener(
             int32_t fd, Event event, EventHandler handler, std::any client_data)
         {
+            CheckCrossThread();
             assert(fd < MAX_NUMBER_OF_FD);
 
             poller_.AddEvent(fd, event);
@@ -79,12 +83,16 @@ namespace net
 
         /// redis function: aeDeleteFileEvent
         /// 移除事件监听
-        void DeleteEventListener(int32_t fd, Event event);
+        void DeleteEventListener(int32_t fd, Event event)
+        {
+            CheckCrossThread();
+        }
 
         /// redis funciton: aeCreateTimeEvent
         /// 新增定时器，返回定时器 id
         size_t SetTimeout(std::function<void()> callback, uint64_t timeout_ms)
         {
+            CheckCrossThread();
             auto timer_ptr =
                 std::make_shared<Timer>(std::move(callback), timeout_ms);
             assert(timer_ptr);
@@ -97,6 +105,7 @@ namespace net
         /// 新增周期定时器，返回定时器 id
         size_t SetInterval(std::function<void()> callback, uint64_t timeout_ms)
         {
+            CheckCrossThread();
             auto timer_ptr =
                 std::make_shared<Timer>(std::move(callback), timeout_ms, true);
             assert(timer_ptr);
@@ -108,7 +117,10 @@ namespace net
 
         /// redis function: aeDeleteTimeEvent
         /// 取消定时器，如果定时器还存在，返回 true
-        bool CancelTimeout(size_t timer_id);
+        bool CancelTimeout(size_t timer_id)
+        {
+            CheckCrossThread();
+        }
 
     private:
         /// redis function: aeSearchNearestTimer
@@ -225,9 +237,20 @@ namespace net
             return result;
         }
 
-        /// 检测 io_service 是否被跨线程使用，是就崩溃
-        bool CheckCrossThread()
+        /// 检测 io_service 启动后，是否被跨线程使用，是就崩溃
+        void CheckCrossThread()
         {
+            // TODO 仅 DEBUG 模式下才做检查
+            // 如果还没有启动，直接返回
+            if (!owner_thread_id_.has_value())
+            {
+                return;
+            }
+            ASSERT_MSG(owner_thread_id_.value() == std::this_thread::get_id())
+                << "IOSvervice 不允许跨线程使用，"
+                << "绑定的线程是调用 IOSvervice::Run() 函数的线程。"
+                << "绑定的线程 id: " << owner_thread_id_.value() << "，"
+                << "当前的线程 id: " << std::this_thread::get_id();
         }
 
         /// 默认的 poller 超时时间，单位毫秒
@@ -240,7 +263,10 @@ namespace net
         timeval last_rollover_check_time_{};
         /// 注册的 fd 和 事件处理对象
         std::array<FileEvent, MAX_NUMBER_OF_FD> events_{};
+        /// 定时器队列，最小堆实现
         TimerQueue timer_queue_{};
+        /// 自定义任务队列
+
         bool stop_{false};
     };
 
