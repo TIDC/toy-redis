@@ -1,13 +1,15 @@
 #pragma once
 
 #include <cstdlib>
+#include <initializer_list>
 #include <iostream>
 
-#define ASSERT_MSG(expr)                    \
-    ((static_cast<bool>(expr))              \
-         ? (base::AbortOutputStream{false}) \
-         : (base::AbortOutputStream{true})) \
-        << "[!!!!!! ASSERT '" << #expr << "' ERROR !!!!!!]"
+#define ASSERT_MSG(expr)                                       \
+    ((static_cast<bool>(expr))                                 \
+         ? (base::AbortOutputStream{false})                    \
+         : (base::AbortOutputStream{true}))                    \
+        .Print("[!!!!!! ASSERT '", #expr, "' ERROR !!!!!!]\n") \
+        .Print("location: ", __FILE__, ":", __LINE__, " ", __func__, "\n")
 
 namespace base
 {
@@ -33,11 +35,35 @@ namespace base
             if (work_)
             {
                 output_count_++;
-                if (output_count_ == 4)
+                if (output_count_ == 1)
                 {
-                    std::cerr << std::endl
-                              << "what: ";
+                    Print("what: ");
                 }
+
+                Print(item);
+            }
+            return *this;
+        }
+
+        template <typename T, typename... Ts>
+        AbortOutputStream &Print(const T &item, const Ts... items)
+        {
+            if (work_)
+            {
+                std::cerr << item;
+                if (sizeof...(items) > 0)
+                {
+                    Print(items...);
+                }
+            }
+            return *this;
+        }
+
+        template <typename T>
+        AbortOutputStream &Print(const T &item)
+        {
+            if (work_)
+            {
                 std::cerr << item;
             }
             return *this;
