@@ -1,14 +1,22 @@
 #include "base/checker.hpp"
+#include "base/errno_to_string.hpp"
 
 #include <array>
 #include <cerrno>
 #include <cstdint>
+#include <fcntl.h>
 #include <string_view>
 
 #include <unistd.h>
 
 namespace ipc
 {
+    enum class PipePort
+    {
+        ReadEnd = 0,
+        WriteEnd = 1
+    };
+
     /// pipe() 简易封装，构造时创建管道，析构时自动关闭
     class SimplePipeline
     {
@@ -19,13 +27,12 @@ namespace ipc
             ASSERT_MSG(result == 0)
                 << "pipe() 创建管道失败, "
                 << "errno=" << errno << ", "
-                << ErrorMessage(errno);
+                << base::ErrnoToString(errno);
         }
 
         ~SimplePipeline()
         {
-            CloseWriteEnd();
-            CloseReadEnd();
+            CloseAll();
         }
 
         /// 获取写入端的 fd
@@ -40,38 +47,64 @@ namespace ipc
             return pipefd_[0];
         }
 
-        /// 关闭写入端
-        void CloseWriteEnd()
+        /// 获取指定端口的 fd
+        int32_t Get(PipePort port)
         {
-            close(WriteEnd());
-        }
+            ASSERT_MSG(port == PipePort::ReadEnd ||
+                       port == PipePort::WriteEnd)
+                << "无效参数，port=" << static_cast<size_t>(port);
 
-        /// 关闭读取端
-        void CloseReadEnd()
-        {
-            close(ReadEnd());
-        }
-
-    private:
-        std::string_view ErrorMessage(int32_t error_code)
-        {
-            switch (error_code)
+            if (port == PipePort::ReadEnd)
             {
-            case EFAULT:
-                return "EFAULT: pipefd is not valid.";
-            case EINVAL:
-                return "EINVAL: Invalid value in flags.";
-            case EMFILE:
-                return "EMFILE: The per-process limit on "
-                       "the number of open file descriptors has been reached.";
-            case ENFILE:
-                return "ENFILE: The system-wide limit on "
-                       "the total number of open files has been reached.";
-            default:
-                return "UNKNOW ERROR";
+                return pipefd_[0];
+            }
+            if (port == PipePort::WriteEnd)
+            {
+                return pipefd_[1];
+            }
+            return -1;
+        }
+
+        /// 设置指定端口是否阻塞
+        void SetNotWait(PipePort port, bool is_block)
+        {
+            auto fd = Get(port);
+            auto flags = fcntl(fd, F_GETFL);
+            if (is_block)
+            {
+                flags |= O_NONBLOCK;
+            }
+            else
+            {
+                flags &= ~O_NONBLOCK;
+            }
+            auto result = fcntl(fd, F_SETFL, flags);
+            ASSERT_MSG(result != -1)
+                << "fcntl() 设置是否阻塞出错，errno=" << errno << "，"
+                << base::ErrnoToString(errno);
+        }
+
+        /// 关闭指定端口
+        void Close(PipePort port)
+        {
+            if (port == PipePort::ReadEnd)
+            {
+                close(ReadEnd());
+            }
+            if (port == PipePort::WriteEnd)
+            {
+                close(WriteEnd());
             }
         }
 
+        /// 完全关闭管道
+        void CloseAll()
+        {
+            Close(PipePort::ReadEnd);
+            Close(PipePort::WriteEnd);
+        }
+
+    private:
         std::array<int32_t, 2> pipefd_;
     };
 
