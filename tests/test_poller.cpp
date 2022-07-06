@@ -3,6 +3,7 @@
 #include "net/epoll_poller.hpp"
 #include "net/poller_types.hpp"
 #include "net/select_poller.hpp"
+#include "ipc/pipe.hpp"
 #include "gtest/gtest.h"
 
 #include <array>
@@ -25,20 +26,16 @@ void PipeWrite(int32_t pipe_fd, std::string_view message)
 void PollerPipeTest(Poller auto &poller)
 {
     std::array<char, 128> buffer;
-    std::array<int32_t, 2> pipeline1;
-    std::array<int32_t, 2> pipeline2;
-
-    // 创建两个管道
-    ASSERT_EQ(pipe(pipeline1.data()), 0);
-    ASSERT_EQ(pipe(pipeline2.data()), 0);
+    ipc::SimplePipeline pipeline1;
+    ipc::SimplePipeline pipeline2;
 
     // 子线程死循环往管道里写消息
-    std::thread(PipeWrite, pipeline1[1], "hello").detach();
-    std::thread(PipeWrite, pipeline2[1], "world").detach();
+    std::thread(PipeWrite, pipeline1.WriteEnd(), "hello").detach();
+    std::thread(PipeWrite, pipeline2.WriteEnd(), "world").detach();
 
     // 主线程监听并获取子线程的消息
-    poller.AddEvent(pipeline1[0], net::Event::Read);
-    poller.AddEvent(pipeline2[0], net::Event::Read);
+    poller.AddEvent(pipeline1.ReadEnd(), net::Event::Read);
+    poller.AddEvent(pipeline2.ReadEnd(), net::Event::Read);
 
     auto consumer = [&](const net::FiredEvent &ev) {
         if (ev.events & net::Event::Read)
