@@ -1,16 +1,20 @@
 #pragma once
 
 #include "base/checker.hpp"
+#include "base/errno_to_string.hpp"
 #include "base/marco.hpp"
 #include "base/time_helper.hpp"
+#include "ipc/pipe.hpp"
 #include "net/concepts/poller.hpp"
 #include "net/constants.hpp"
 #include "net/default_poller.hpp"
+#include "net/poller_types.hpp"
 #include "net/timer.hpp"
 
 #include <any>
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -20,6 +24,7 @@
 #include <thread>
 #include <vector>
 
+#include <unistd.h>
 #include <sys/time.h>
 
 namespace net
@@ -63,7 +68,6 @@ namespace net
         void Run()
         {
             assert(!owner_thread_id_.has_value() && "不允许重复调用");
-            owner_thread_id_ = std::this_thread::get_id();
             std::cout << "[ 启动 IOService ] tid=" << std::this_thread::get_id() << std::endl;
             MainLoop();
         }
@@ -91,17 +95,24 @@ namespace net
         /// redis function: aeCreateFileEvent
         /// 新增事件监听
         bool AddEventListener(
-            int32_t fd, Event event, EventHandler handler, std::any client_data)
+            int32_t fd, Event event,
+            EventHandler handler, std::any client_data = nullptr)
         {
             CheckCrossThread();
             assert(fd < MAX_NUMBER_OF_FD);
 
-            poller_.AddEvent(fd, event);
+            auto result = poller_.AddEvent(fd, event);
+            if (result != 0)
+            {
+                return false;
+            }
 
             auto &e = events_[fd];
             e.mask_ |= event;
             e.handler_ = std::move(handler);
             e.client_data_ = std::move(client_data);
+
+            return true;
         }
 
         /// redis function: aeDeleteFileEvent
@@ -143,6 +154,19 @@ namespace net
         bool CancelTimeout(size_t timer_id)
         {
             CheckCrossThread();
+        }
+
+        /// 通知 IOService 立即开始工作
+        /// 如果 IOService 内的事件循环正在阻塞等待事件，调用该函数提前结束等待。
+        /// 允许跨线程调用
+        void WakeUp()
+        {
+            // TODO 只有在等待时才发送
+            // 写入一个字节，触发管道读取端的 io 事件，唤醒 poller
+            auto result = write(notify_pipe_.WriteEnd(), "P", 1);
+            ASSERT_MSG(result != -1)
+                << "写管道错误，errno=" << errno << "，"
+                << base::ErrnoToString(errno);
         }
 
     private:
@@ -236,12 +260,41 @@ namespace net
             }
         }
 
+        /// 处理唤醒通知事件
+        void ProcessWakeUpNotify(int32_t fd)
+        {
+            ASSERT_MSG(fd == notify_pipe_.ReadEnd())
+                << "无效参数。通知唤醒的 fd=" << notify_pipe_.ReadEnd()
+                << " 参数提供的 fd=" << fd;
+
+            // 如果同时被多条线程唤醒，管道会有多个字节的数据，需要将管道内的全部东西取出
+            std::byte byte;
+            while (true)
+            {
+                int result = read(fd, &byte, 1);
+                if (result == 0 || result == -1)
+                {
+                    break;
+                }
+            }
+        }
+
         /// redis function: aeMain
         /// 事件循环
         /// 处理流程：获取即将超时的定时器时间，设置超时时间给 poller 等待 IO 事件，
         /// 如果有超时或 IO 事件触发，先执行定时器回调，再执行 IO 事件回调，循环往复
         void MainLoop()
         {
+            // 绑定当前线程
+            owner_thread_id_ = std::this_thread::get_id();
+            // 注册用于提前唤醒正在阻塞的 poller 的管道 fd
+            notify_pipe_.SetNotWait(ipc::PipePort::ReadEnd, true);
+            AddEventListener(
+                notify_pipe_.ReadEnd(), Event::Read,
+                [&](auto fd, auto, auto) {
+                    ProcessWakeUpNotify(fd);
+                });
+
             while (!stop_)
             {
                 if (befer_sleep_callback_)
@@ -264,7 +317,6 @@ namespace net
             }
         }
 
-    private:
         /// 检测系统时间是否回拨
         bool CheckClockRollover(const timeval &now)
         {
@@ -302,6 +354,7 @@ namespace net
                 << "当前的线程 id: " << std::this_thread::get_id();
         }
 
+    private:
         /// 默认的 poller 超时时间，单位毫秒
         static constexpr int64_t DEFAULT_TIMEOUT_MS = 1000;
 
@@ -319,6 +372,8 @@ namespace net
         TimerQueue timer_queue_{};
         /// 自定义任务队列
         PendingTaskQueue pending_task_queue_{};
+        /// 用于提前唤醒 poller 的管道
+        ipc::SimplePipeline notify_pipe_;
         bool stop_{false};
     };
 
