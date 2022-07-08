@@ -9,6 +9,11 @@ if (NOT GTest_FOUND)
     FetchContent_MakeAvailable(googletest)
 endif()
 
+add_compile_options(
+    -Wall
+    -Wno-unused-function
+)
+
 # SDS 单元测试
 create_test(
     TEST_sds
