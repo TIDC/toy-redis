@@ -140,8 +140,8 @@ namespace net
         size_t SetInterval(std::function<void()> callback, uint64_t timeout_ms)
         {
             CheckCrossThread();
-            auto timer_ptr =
-                std::make_shared<Timer>(std::move(callback), timeout_ms, true);
+            auto timer_ptr = std::make_shared<Timer>(
+                std::move(callback), timeout_ms, true);
             assert(timer_ptr);
 
             auto id = timer_ptr->GetID();
