@@ -1,10 +1,15 @@
 #include "base/time_helper.hpp"
 #include "ipc/pipe.hpp"
 #include "net/concepts/poller.hpp"
-#include "net/epoll_poller.hpp"
 #include "net/poller_types.hpp"
 #include "net/select_poller.hpp"
 #include "gtest/gtest.h"
+#if !defined(__WIN32__)
+#include "net/epoll_poller.hpp"
+#endif
+#if defined(__APPLE__)
+#include "net/kqueue_poller.hpp"
+#endif
 
 #include <array>
 #include <cstdint>
@@ -73,8 +78,22 @@ TEST(poller, SelectPoller)
     PollerPipeTest(poller);
 }
 
+#if !defined(__WIN32__)
+
 TEST(poller, EpollPoller)
 {
     net::EpollPoller poller;
     PollerPipeTest(poller);
 }
+
+#endif
+
+#if defined(__APPLE__)
+
+TEST(poller, EpollPoller)
+{
+    net::KQueuePoller poller;
+    PollerPipeTest(poller);
+}
+
+#endif

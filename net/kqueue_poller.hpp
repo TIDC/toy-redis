@@ -1,3 +1,7 @@
+#pragma once
+
+#if defined(__APPLE__)
+
 #include "base/marco.hpp"
 #include "base/ring_queue.hpp"
 #include "net/constants.hpp"
@@ -117,3 +121,5 @@ namespace net
         base::RingQueue<FiredEvent, MAX_NUMBER_OF_FD> fired_fds_;
     };
 } // namespace net
+
+#endif
