@@ -24,8 +24,8 @@
 #include <thread>
 #include <vector>
 
-#include <unistd.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 namespace net
 {
@@ -120,6 +120,22 @@ namespace net
         void DeleteEventListener(int32_t fd, Event event)
         {
             CheckCrossThread();
+            assert(fd < MAX_NUMBER_OF_FD);
+
+            poller_.DeleteEvent(fd, event);
+            auto result = poller_.AddEvent(fd, event);
+            if (result != 0)
+            {
+                return;
+            }
+
+            auto &e = events_[fd];
+            e.mask_ &= ~event;
+            if (e.mask_ == Event::None)
+            {
+                e.handler_ = nullptr;
+                e.client_data_.reset();
+            }
         }
 
         /// redis funciton: aeCreateTimeEvent
@@ -245,6 +261,20 @@ namespace net
         /// 处理 poller_ 等待到的IO事件，返回被处理的事件数量
         size_t ProcessEvents()
         {
+            auto consumer = [&](FiredEvent fired_event) {
+                ASSERT_MSG(fired_event.events != Event::None)
+                    << "poller 返回的 fd 没有任何事件";
+                ASSERT_MSG(fired_event.fd < MAX_NUMBER_OF_FD)
+                    << "poller 返回的 fd 值超出最大数量限制";
+
+                FileEvent &ev = events_[fired_event.fd];
+                ASSERT_MSG(ev.mask_ != Event::None);
+                ASSERT_MSG(ev.handler_ != nullptr);
+
+                ev.handler_(fired_event.fd, fired_event.events,
+                            ev.client_data_);
+            };
+            poller_.ConsumeAll(consumer);
             return 0;
         }
 
@@ -309,10 +339,13 @@ namespace net
                     poller_timout_ms = 0;
                 }
 
-                /*auto active_event_size = */ poller_.Poll(poller_timout_ms);
+                auto active_event_size = poller_.Poll(poller_timout_ms);
 
                 ProcessTimeoutTimer();
-                ProcessEvents();
+                if (active_event_size > 0)
+                {
+                    ProcessEvents();
+                }
                 ProcessPendingTask();
             }
         }
