@@ -1,12 +1,15 @@
 #pragma once
 
-#include "../poller_types.hpp"
+#include "net/poller_types.hpp"
 
 #include <concepts>
 #include <cstdint>
 #include <type_traits>
 
-/** 
+namespace net
+{
+
+    /** 
     多路 IO 复用器的接口约束
     class PollerName
     {
@@ -19,18 +22,20 @@
         int32_t Poll(uint64_t timeout_ms = 0);
     };
 **/
-template <typename PollerType>
-concept Poller = requires(PollerType poller)
-{
-    std::is_same_v<decltype(PollerType{}), PollerType>;
-
+    template <typename PollerType>
+    concept Poller = requires(PollerType poller)
     {
-        poller.AddEvent(int32_t{}, net::Event{})
-        } -> std::same_as<int32_t>;
+        std::is_same_v<decltype(PollerType{}), PollerType>;
 
-    poller.DeleteEvent(int32_t{}, net::Event{});
+        {
+            poller.AddEvent(int32_t{}, net::Event{})
+            } -> std::same_as<int32_t>;
 
-    {
-        poller.Poll(uint64_t{})
-        } -> std::same_as<int32_t>;
-};
+        poller.DeleteEvent(int32_t{}, net::Event{});
+
+        {
+            poller.Poll(uint64_t{})
+            } -> std::same_as<int32_t>;
+    };
+
+} // namespace net

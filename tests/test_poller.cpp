@@ -28,7 +28,7 @@ void PipeWrite(int32_t pipe_fd, std::string_view message)
     }
 }
 
-void PollerPipeTest(Poller auto &poller)
+void PollerPipeTest(net::Poller auto &poller)
 {
     std::array<char, 128> buffer;
     ipc::SimplePipeline pipeline1;
