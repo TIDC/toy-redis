@@ -56,3 +56,9 @@ create_test(
     FILES test_io_service.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_iterator
+    FILES test_iterator.cpp
+    LIBS gtest_main
+)
