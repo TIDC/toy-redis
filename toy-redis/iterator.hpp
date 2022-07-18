@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/marco.hpp"
 #include "concepts/has_stl_value_type.hpp"
 
 #include <memory>
@@ -83,12 +84,25 @@ namespace tr
     class Iterator
     {
     public:
+        DISABLE_COPY(Iterator);
+
         template <typename T>
         explicit Iterator(T &&iterator)
         {
             using Type = std::remove_reference_t<T>;
             impl_ = std::make_unique<IteratorImplement<Type>>(
                 std::forward<T>(iterator));
+        }
+
+        Iterator(Iterator &&other)
+            : impl_(std::move(other.impl_))
+        {
+        }
+
+        Iterator *operator=(Iterator &&other)
+        {
+            impl_ = std::move(other.impl_);
+            return *this;
         }
 
         const ValueType &Get()
