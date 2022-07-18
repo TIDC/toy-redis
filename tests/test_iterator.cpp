@@ -17,12 +17,22 @@ TEST(toy_redis, Iterator)
     }
 
     std::string hello{"Hello"};
-    tr::Iterator<char> curr2{hello.begin()};
-    tr::Iterator<char> end2{hello.end()};
+    tr::ConstIterator<char> curr2{hello.begin()};
+    tr::ConstIterator<char> end2{hello.end()};
     while (!curr2.Equal(end2))
     {
         std::cout << curr2.Get();
         curr2.Next();
+    }
+    std::cout << std::endl;
+
+    std::set<std::string> set{"Hello ", "world ", "type ", "erasure "};
+    tr::ConstIterator<std::string> curr3{set.begin()};
+    tr::ConstIterator<std::string> end3{set.end()};
+    while (!curr3.Equal(end3))
+    {
+        std::cout << curr3.Get();
+        curr3.Next();
     }
     std::cout << std::endl;
 }
