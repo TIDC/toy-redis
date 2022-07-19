@@ -62,3 +62,9 @@ create_test(
     FILES test_iterator.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_msg_que
+    FILES test_message_queue.cpp
+    LIBS gtest_main
+)

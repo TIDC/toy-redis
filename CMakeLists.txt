@@ -12,10 +12,15 @@ add_subdirectory(tests)
 
 add_executable(
     ${PROJECT_NAME}
-    main.cpp
-        net/epoll_poller.hpp)
+    main.cpp 
+)
 
 target_include_directories(
     ${PROJECT_NAME} PRIVATE 
     .
+)
+
+target_link_libraries(
+    ${PROJECT_NAME} PRIVATE 
+    pthread
 )
