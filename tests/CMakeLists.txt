@@ -68,3 +68,9 @@ create_test(
     FILES test_message_queue.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_defer
+    FILES test_defer.cpp
+    LIBS gtest_main
+)
