@@ -2,6 +2,7 @@
 
 #include "base/fixed_buffer.hpp"
 #include "base/marco.hpp"
+#include "base/message_queue.hpp"
 #include "base/time_helper.hpp"
 
 #include <algorithm>
@@ -108,7 +109,6 @@ namespace base
                 buffer.Append(LEVEL_STRING[static_cast<size_t>(level_)]);
                 buffer.Append("] ");
                 writer(fd, buffer.Data(), buffer.UsedSize());
-
                 std::fill_n(buffer.Data(), buffer.Capacity(), '\0');
                 buffer.Clear();
 
@@ -193,7 +193,6 @@ namespace base
                 notify_run_.wait(lock, [&]() -> bool {
                     return stop_ == false;
                 });
-                // std::cout << "日志线程启动" << std::endl;
             });
 
             log_target_ = std::make_shared<std::vector<int32_t>>();
@@ -210,20 +209,21 @@ namespace base
         ~Log()
         {
             ref_count_--;
-            // std::cerr << ref_count_ << std::endl;
             if (ref_count_ == 0)
             {
-                // std::cerr << "等待结束" << std::endl;
-
                 stop_ = true;
-                // std::cout << "通知2" << std::endl;
-                std::unique_lock<std::mutex> lock(queue_mutex_);
-
-                while (!task_queue_.empty())
+                // 任务队列切换非阻塞模式
+                task_queue_.SetNotWait();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                while (true)
                 {
-                    auto &task = task_queue_.front();
-                    (*task.logger_)(task.entry_.get());
-                    task_queue_.pop();
+                    auto optional = task_queue_.Pop();
+                    if (!optional.has_value())
+                    {
+                        break;
+                    }
+
+                    (*optional->logger_)(optional->entry_.get());
                 }
 
                 notify_.notify_one();
@@ -280,19 +280,7 @@ namespace base
 
         static void Post(LogTask &&task)
         {
-            // std::cerr << "新任务" << std::endl;
-            std::unique_lock<std::mutex> lock(queue_mutex_);
-            task_queue_.emplace(std::move(task));
-            // std::cerr << "taskqueuesize " << task_queue_.size() << std::endl;
-            auto now = NowMilliseconds();
-            if (now - last_notify_time_ > 1000 ||
-                task_queue_.size() >= 10)
-            {
-                lock.unlock();
-                last_notify_time_ = now;
-                // std::cout << "通知1" << std::endl;
-                notify_.notify_one();
-            }
+            task_queue_.Push(std::move(task));
         }
 
         static void WorkerFuntion()
@@ -301,27 +289,15 @@ namespace base
             notify_run_.notify_one();
             while (!stop_)
             {
-                std::unique_lock<std::mutex> lock(queue_mutex_);
-                notify_.wait_for(lock, std::chrono::milliseconds(100));
-                if (task_queue_.empty())
+                auto optional = task_queue_.Pop();
+                if (optional.has_value())
                 {
-                    continue;
-                }
-                std::queue<LogTask> que;
-                task_queue_.swap(que);
-                lock.unlock();
-                // std::cout << "输出 " << que.size() << std::endl;
-                while (!que.empty())
-                {
-                    auto &task = que.front();
-                    (*task.logger_)(task.entry_.get());
-                    que.pop();
+                    (*optional->logger_)(optional->entry_.get());
                 }
             }
         }
 
-        static inline std::mutex queue_mutex_;
-        static inline std::queue<LogTask> task_queue_;
+        static inline MessageQueue<LogTask> task_queue_{1000};
         static inline std::thread worker_;
         static inline std::condition_variable notify_;
         static inline std::condition_variable notify_run_;
