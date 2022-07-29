@@ -74,3 +74,9 @@ create_test(
     FILES test_defer.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_log
+    FILES test_log.cpp
+    LIBS gtest_main
+)
