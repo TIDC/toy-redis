@@ -30,10 +30,10 @@ namespace tr
             // TODO 守护进程初始化
             InitServer();
             // TODO rdb 和 aof 初始化
-            auto befer_sleep = [&](auto &ios) {
-                BeferSleep(ios);
+            auto before_sleep = [&](auto &ios) {
+                BeforeSleep(ios);
             };
-            io_service_.SetBeforeSleepCallback(befer_sleep);
+            io_service_.SetBeforeSleepCallback(before_sleep);
             io_service_.Run();
         }
 
@@ -55,7 +55,7 @@ namespace tr
         {
         }
 
-        void BeferSleep(IOServiceType &io_service)
+        void BeforeSleep(IOServiceType &io_service)
         {
         }
 

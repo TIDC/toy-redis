@@ -139,7 +139,7 @@ namespace base
             auto start_pointer = buffer_.get();
             auto new_start_pointer = new_buffer.get();
             auto new_index_start = uint32_t{0};
-            auto new_inde_offset = uint32_t{0};
+            auto new_index_offset = uint32_t{0};
             while (start_pointer != nullptr)
             {
                 // 获取 key 长度
@@ -155,9 +155,9 @@ namespace base
                     uint32_t hashcode = *(uint32_t *)start_pointer;
                     new_index[new_index_start] = ZipMapIndex{
                         .hashcode = hashcode,
-                        .offset = new_inde_offset};
+                        .offset = new_index_offset};
                     new_index_start++;
-                    new_inde_offset += required_length;
+                    new_index_offset += required_length;
                     new_start_pointer += required_length;
                 }
 
