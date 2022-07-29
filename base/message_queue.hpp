@@ -42,6 +42,8 @@ namespace base
         void SetNotWait()
         {
             non_block = true;
+            get_cv_.notify_one();
+            put_cv_.notify_all();
         }
 
         /// 新增一个消息
