@@ -9,7 +9,7 @@ namespace base
 
     /// std::list 别名
     template <typename T, typename Alloc = std::allocator<T>>
-    using List = std::list<T, Alloc>;
+    using LinkedList = std::list<T, Alloc>;
 
     /// std::forward_list 别名
     template <typename T, typename Alloc = std::allocator<T>>
