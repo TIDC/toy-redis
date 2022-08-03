@@ -97,7 +97,7 @@ namespace base
         /// 交换生产者队列和消费者队列的内容
         size_t SwapQueue()
         {
-            assert(get_mutex_.try_lock() == false && "调用改函数前需要先上消费者锁");
+            assert(get_mutex_.try_lock() == false && "调用该函数前需要先上消费者锁");
 
             std::unique_lock<std::mutex> lock(put_mutex_);
             /// 等待有消息加入到生产者队列内

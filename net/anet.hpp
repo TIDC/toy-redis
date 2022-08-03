@@ -10,6 +10,9 @@
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include "net/constants.hpp"
+#include "net/poller_types.hpp"
+#include <any>
 
 namespace net {
     class RedisNet
@@ -17,6 +20,8 @@ namespace net {
     public:
         DISABLE_COPY(RedisNet)
 
+        RedisNet() = default;
+        ~RedisNet() = default;
         // 创建tcp服务
         int anetTcpServer(char *err, int port, char *bindaddr)
         {
@@ -52,6 +57,18 @@ namespace net {
             if (ip) strcpy(ip,inet_ntoa(sa.sin_addr));
             if (port) *port = ntohs(sa.sin_port);
             return fd;
+        }
+
+        // 新的tcp链接的处理函数
+        void acceptTcpHandler(int fd) {
+            int cPort, cfd;
+            char ip[128];
+            char netErr[net::ANET_ERR_LEN];
+            cfd = anetTcpAccept(netErr, fd, ip, &cPort);
+            if (cfd == net::ANET_ERR) {
+                return;
+            }
+            acceptCommonHandler(cfd);
         }
 
     private:
@@ -107,9 +124,10 @@ namespace net {
             return ANET_OK;
         }
 
+        void acceptCommonHandler(int fd){
+            // todo 创建客户端
+        }
+
     private:
-        int ANET_ERR_LEN = 256;
-        int ANET_ERR = -1;
-        int ANET_OK = 0;
     };
 }

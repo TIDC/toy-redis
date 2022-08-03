@@ -8,6 +8,9 @@ namespace net
     {
 
         static constexpr size_t MAX_NUMBER_OF_FD = 10240;
+        static constexpr int ANET_ERR_LEN = 256;
+        static constexpr int ANET_ERR = -1;
+        static constexpr int ANET_OK = 0;
 
     }
 } // namespace net
