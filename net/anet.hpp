@@ -13,6 +13,7 @@
 #include "net/constants.hpp"
 #include "net/poller_types.hpp"
 #include <any>
+#include <error.h>
 
 namespace net {
     class RedisNet
@@ -23,7 +24,7 @@ namespace net {
         RedisNet() = default;
         ~RedisNet() = default;
         // 创建tcp服务
-        int anetTcpServer(char *err, int port, char *bindaddr)
+        int anetTcpServer(char *err, int port, const char *bindaddr)
         {
             int s;
             struct sockaddr_in sa;
@@ -74,7 +75,7 @@ namespace net {
     private:
         int anetCreateSocket(char *err, int domain) {
             int s, on = 1;
-            if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
+            if ((s = socket(domain, SOCK_STREAM, IPPROTO_TCP)) == -1) {
                 anetSetError(err, "creating socket: %s", strerror(errno));
                 return ANET_ERR;
             }
@@ -82,6 +83,7 @@ namespace net {
             if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
                 anetSetError(err, "setsockopt SO_REUSEADDR: %s", strerror(errno));
             }
+            return s;
         }
 
         void anetSetError(char *err, const char *fmt, ...) {
