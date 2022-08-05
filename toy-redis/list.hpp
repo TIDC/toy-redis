@@ -4,8 +4,11 @@
 #include "toy-redis/iterator.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
+#include <memory>
 #include <type_traits>
+#include <utility>
 
 namespace tr
 {
@@ -48,40 +51,24 @@ namespace tr
         };
 
         template <typename T, typename = void>
-        class ListImplement : public ListInterface<T>
+        class ListImplement : public ListInterface<typename T::ValueType>
         {
         };
 
         template <HasStlValueType T>
-        class ListImplement<T> : public ListInterface<T>
+        class ListImplement<T> : public ListInterface<typename T::value_type>
         {
         public:
             /// 从一个 List 类型复制构造
             explicit ListImplement(const T &target)
             {
-                if constexpr (std::is_copy_constructible_v<T>)
-                {
-                    target_ = target;
-                }
-                else
-                {
-                    static_assert(std::is_copy_constructible_v<T>,
-                                  "Type T need implement copy constructor");
-                }
+                target_ = target;
             }
 
             /// 获取一个 List 类型移动构造
             explicit ListImplement(T &&target)
             {
-                if constexpr (std::is_move_constructible_v<T>)
-                {
-                    target_ = std::move(target);
-                }
-                else
-                {
-                    static_assert(std::is_move_constructible_v<T>,
-                                  "Type T need implement move constructor");
-                }
+                target_ = std::move(target);
             }
 
             /*=== 修改类接口 ===*/
@@ -119,44 +106,77 @@ namespace tr
                 target_.pop_back();
             }
 
-            /// 在指定元素的位置前或后插入新元素
-            void Insert(const T &target, const T &value, bool after) override
+            /// 在指定位置前或后插入新元素
+            /// TODO 性能较差，需要想办法实现通过通用迭代器直接插入元素
+            void Insert(size_t index, const T &value, bool after) override
             {
+                assert(index >= 0);
+                assert(index <= Size());
+                auto iter = target_.begin();
+                for (size_t i = 0; i < index; i++)
+                {
+                    iter++;
+                }
+                if (after)
+                {
+                    iter++;
+                }
+
+                target_.insert(iter, value);
             }
 
-            void Insert(const T &target, T &&value, bool after) override
+            void Insert(size_t index, T &&value, bool after) override
             {
+                assert(index >= 0);
+                assert(index <= Size());
+                auto iter = target_.begin();
+                for (size_t i = 0; i < index; i++)
+                {
+                    iter++;
+                }
+                if (after)
+                {
+                    iter++;
+                }
+
+                target_.insert(iter, std::move(value));
             }
 
             /// 删除指定元素
             void Delete(const T &value) override
             {
+                target_.remove(value);
             }
 
             /*=== 访问类接口 ===*/
             /// 获取列表元素数量
             size_t Size() override
             {
+                return target_.size();
             }
 
             /// 获取头部元素的引用
             T &Front() override
             {
+                return target_.front();
             }
 
             /// 获取尾部元素的引用
             T &Back() override
             {
+                return target_.back();
             }
 
             /// 获取特定位置元素的
             T &Index(size_t index) override
             {
+                assert(false && "未实现");
             }
 
             /// 获取从 index 位置开始的正向迭代器
             Iterator<T> Iteratro(size_t in) override
             {
+                assert(false && "未实现");
             }
 
         private:
@@ -166,7 +186,21 @@ namespace tr
     } // namespace
 
     /// 双端链表的类型擦除容器
-    template <typename T>
-    class List;
+    template <typename ValueType>
+    class List
+    {
+    public:
+        template <typename ListType>
+        List(ListType &&target)
+        {
+            using Type = std::remove_cvref_t<ListType>;
+            static_assert(std::is_same_v<ValueType, typename Type::value_type>);
+            target_ = std::make_unique<ListImplement<Type>>(
+                std::forward<ListType>(target));
+        }
+
+    private:
+        std::unique_ptr<ListInterface<ValueType>> target_;
+    };
 
 } // namespace tr
