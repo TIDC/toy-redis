@@ -3,17 +3,18 @@
 //
 #pragma once
 #include "base/marco.hpp"
+#include "net/constants.hpp"
+#include "net/poller_types.hpp"
+#include "toy-redis/client.hpp"
+#include <any>
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <error.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include "net/constants.hpp"
-#include "net/poller_types.hpp"
-#include <any>
-#include <error.h>
 
 namespace net {
     class RedisNet
@@ -128,6 +129,7 @@ namespace net {
 
         void acceptCommonHandler(int fd){
             // todo 创建客户端
+            auto c = new tr::RedisClient.CreateClient(fd);
         }
 
     private:

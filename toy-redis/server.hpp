@@ -78,6 +78,8 @@ namespace tr
 
         void BeforeSleep(IOServiceType &io_service)
         {
+            // TODO sleep前执行的任务
+
         }
 
     private:
