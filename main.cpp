@@ -1,7 +1,7 @@
 #include "base/hello.h"
 
+#include "toy-redis/server.hpp"
 #include <iostream>
-#include "toy-redis/toy_redis_server.hpp"
 
 int main(int, char **)
 {

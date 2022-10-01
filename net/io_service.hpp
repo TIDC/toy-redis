@@ -138,7 +138,7 @@ namespace net
             }
         }
 
-        /// redis funciton: aeCreateTimeEvent
+        /// redis function: aeCreateTimeEvent
         /// 新增定时器，返回定时器 id
         size_t SetTimeout(std::function<void()> callback, uint64_t timeout_ms)
         {

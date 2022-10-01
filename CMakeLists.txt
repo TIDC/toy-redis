@@ -12,8 +12,8 @@ add_subdirectory(tests)
 
 add_executable(
     ${PROJECT_NAME}
-    main.cpp 
-)
+    main.cpp
+        client.cpp client.h)
 
 target_include_directories(
     ${PROJECT_NAME} PRIVATE 
