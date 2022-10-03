@@ -35,15 +35,19 @@ namespace tr
             auto before_sleep = [&](auto &ios) {
                 BeforeSleep(ios);
             };
-            io_service_.SetBeforeSleepCallback(before_sleep);
-            io_service_.Run();
+
             if (ipfd > 0)
             {
+                auto addClient = [&](std::shared_ptr<RedisClient> ptr) {
+                    list.emplace_back(ptr);
+                };
                 auto handle = [&](auto fd, auto event, const std::any &client_data){
-                    netTool.acceptTcpHandler(fd);
+                    netTool.acceptTcpHandler(fd, addClient);
                 };
                 io_service_.AddEventListener(ipfd, net::Read, handle);
             }
+            io_service_.SetBeforeSleepCallback(before_sleep);
+            io_service_.Run();
         }
 
         ~ToyRedisServer() = default;
@@ -88,6 +92,7 @@ namespace tr
         net::RedisNet netTool;
         int ipfd;
         base::Log server_logger;
+        std::vector<std::shared_ptr<RedisClient>> list;
     };
 
 } // namespace tr

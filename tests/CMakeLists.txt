@@ -80,3 +80,9 @@ create_test(
     FILES test_log.cpp
     LIBS gtest_main
 )
+
+create_test(
+    TEST_server
+    FILES test_server.cpp
+    LIBS gtest_main
+)

@@ -62,7 +62,7 @@ namespace net {
         }
 
         // 新的tcp链接的处理函数
-        void acceptTcpHandler(int fd) {
+        void acceptTcpHandler(int fd, std::function<void(std::shared_ptr<tr::RedisClient>)> handler) {
             int cPort, cfd;
             char ip[128];
             char netErr[net::ANET_ERR_LEN];
@@ -70,7 +70,7 @@ namespace net {
             if (cfd == net::ANET_ERR) {
                 return;
             }
-            acceptCommonHandler(cfd);
+            acceptCommonHandler(cfd, handler);
         }
 
     private:
@@ -127,9 +127,11 @@ namespace net {
             return ANET_OK;
         }
 
-        void acceptCommonHandler(int fd){
+        void acceptCommonHandler(int fd, std::function<void(std::shared_ptr<tr::RedisClient>)> handler){
             // todo 创建客户端
-            auto c = new tr::RedisClient.CreateClient(fd);
+            auto c = tr::RedisClient::CreateClient(fd);
+            // 添加到server中
+            handler(c);
         }
 
     private:

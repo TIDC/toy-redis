@@ -9,15 +9,12 @@ namespace tr{
     class RedisClient {
     public:
         RedisClient() = default;
-        static std::shared_ptr<RedisClient> CreateClient(int fd);
+        static std::shared_ptr<RedisClient> CreateClient(int fd){
+            return std::shared_ptr<RedisClient>();
+        }
     private:
         int fd;
         base::RedisDB *db;
         base::SimpleDynamicString *queryBuf;
     };
-
-    static std::shared_ptr<RedisClient> CreateClient(int fd) {
-        std::shared_ptr<RedisClient> s = std::make_shared<RedisClient>();
-        return s;
-    }
 }
