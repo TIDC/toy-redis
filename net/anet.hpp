@@ -132,6 +132,7 @@ namespace net {
             auto c = tr::RedisClient::CreateClient(fd);
             // 添加到server中
             handler(c);
+            // todo 添加处理回调函数
         }
 
     private:

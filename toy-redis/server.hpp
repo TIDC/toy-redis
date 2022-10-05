@@ -40,6 +40,15 @@ namespace tr
             {
                 auto addClient = [&](std::shared_ptr<RedisClient> ptr) {
                     list.emplace_back(ptr);
+                    // todo 客户端有读事件时的处理
+                    auto clientHandler = [&](auto fd, auto event, const std::any &client_data){
+                        char buf[net::REDIS_IOBUF_LEN];
+                        auto nread = read(fd, buf, net::REDIS_IOBUF_LEN);
+                        if (nread == -1) {
+
+                        }
+                    };
+                    io_service_.AddEventListener(ptr.get()->GetFd(), net::Read, clientHandler);
                 };
                 auto handle = [&](auto fd, auto event, const std::any &client_data){
                     netTool.acceptTcpHandler(fd, addClient);
@@ -84,6 +93,17 @@ namespace tr
         {
             // TODO sleep前执行的任务
 
+        }
+
+        void RemoveClient(int fd){
+            auto i = 0;
+            for(; i < list.size(); i++) {
+                if (list.at(i).get()->GetFd() == fd) {
+                    break;
+                }
+            }
+            // 删除第 i 个元素，需-1
+            list.erase(list.begin() + i - 1);
         }
 
     private:

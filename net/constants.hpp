@@ -11,6 +11,7 @@ namespace net
         static constexpr int ANET_ERR_LEN = 256;
         static constexpr int ANET_ERR = -1;
         static constexpr int ANET_OK = 0;
+        static constexpr int REDIS_IOBUF_LEN = 1024;
 
     }
 } // namespace net
