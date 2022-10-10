@@ -13,7 +13,7 @@ TEST(server, addClient){
 
 
     int clientId = socket(AF_INET, SOCK_STREAM, 0);
-    std::cout << clientId << std::endl;
+    std::cout << "clientId is " << clientId << std::endl;
     assert(clientId != -1 && "Error connect");
 
     sockaddr_in serverAddr;
@@ -21,7 +21,13 @@ TEST(server, addClient){
     serverAddr.sin_port = htons(6758);
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     auto result = connect(clientId, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-    std::cout << result << std::endl;
+    std::cout << "result is " << result << std::endl;
     assert( result >= 0 && "Error: connect");
+    char buf[1024];
+    buf[0] = '*';
+    auto send_length = send(clientId, buf, 1024, 0);
+    std::cout << "send is " << send_length << std::endl;
+    assert(send_length > 0 && "Error: send");
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     close(clientId);
 }

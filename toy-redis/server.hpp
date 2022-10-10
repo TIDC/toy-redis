@@ -40,15 +40,14 @@ namespace tr
             {
                 auto addClient = [&](std::shared_ptr<RedisClient> ptr) {
                     list.emplace_back(ptr);
+                    std::cout << "add client" << std::endl;
                     // todo 客户端有读事件时的处理
                     auto clientHandler = [&](auto fd, auto event, const std::any &client_data){
-                        char buf[net::REDIS_IOBUF_LEN];
-                        auto nread = read(fd, buf, net::REDIS_IOBUF_LEN);
-                        if (nread == -1) {
-
-                        }
+                        assert(fd == ptr.get()->GetFd() && "fd不一致");
+                        ptr.get()->readQueryFromClient();
                     };
-                    io_service_.AddEventListener(ptr.get()->GetFd(), net::Read, clientHandler);
+                    auto result = io_service_.AddEventListener(ptr.get()->GetFd(), net::Read, clientHandler);
+                    assert(result && "add even fail");
                 };
                 auto handle = [&](auto fd, auto event, const std::any &client_data){
                     netTool.acceptTcpHandler(fd, addClient);

@@ -270,6 +270,12 @@ namespace base
             return IndexOf(target) != std::string_view::npos;
         }
 
+        char At(int index) {
+            // 调用者保证数据不越界
+            auto data = buffer_.get();
+            return data[index];
+        }
+
     private:
         /// 初始化的实现
         void CreateFrom(const char *init, size_t init_length)

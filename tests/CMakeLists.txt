@@ -14,72 +14,72 @@ add_compile_options(
     -Wno-unused-function
 )
 
-# SDS 单元测试
-create_test(
-    TEST_sds
-    FILES test_sds.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_ref_optional
-    FILES test_reference_optional.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_zipmap
-    FILES test_zipmap.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_dictionary
-    FILES test_dictionary.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_poller
-    FILES test_poller.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_timer
-    FILES test_timer.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_io_service
-    FILES test_io_service.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_iterator
-    FILES test_iterator.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_msg_que
-    FILES test_message_queue.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_defer
-    FILES test_defer.cpp
-    LIBS gtest_main
-)
-
-create_test(
-    TEST_log
-    FILES test_log.cpp
-    LIBS gtest_main
-)
+## SDS 单元测试
+#create_test(
+#    TEST_sds
+#    FILES test_sds.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_ref_optional
+#    FILES test_reference_optional.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_zipmap
+#    FILES test_zipmap.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_dictionary
+#    FILES test_dictionary.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_poller
+#    FILES test_poller.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_timer
+#    FILES test_timer.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_io_service
+#    FILES test_io_service.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_iterator
+#    FILES test_iterator.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_msg_que
+#    FILES test_message_queue.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_defer
+#    FILES test_defer.cpp
+#    LIBS gtest_main
+#)
+#
+#create_test(
+#    TEST_log
+#    FILES test_log.cpp
+#    LIBS gtest_main
+#)
 
 create_test(
     TEST_server
