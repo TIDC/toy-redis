@@ -8,11 +8,13 @@
 #include "net/constants.hpp"
 #include "net/poller_types.hpp"
 
-#include <optional>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
+#include <optional>
 
+#include <ostream>
 #include <sys/epoll.h>
 
 namespace net
@@ -31,19 +33,25 @@ namespace net
         int32_t AddEvent(int32_t fd, int32_t events)
         {
 
-            if (epfd_ == -1) return -1;
+            if (epfd_ == -1)
+                return -1;
 
             int op = fdEvent[fd].events == Event::None ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
             epoll_event ee;
             ee.events = 0;
             // 合并之前的事件
             events |= fdEvent[fd].events;
-            if (events & Event::Read) ee.events |= EPOLLIN;
-            if (events & Event::Write) ee.events |= EPOLLOUT;
+            if (events & Event::Read)
+                ee.events |= EPOLLIN;
+            if (events & Event::Write)
+                ee.events |= EPOLLOUT;
+            std::cout << "add event fd is " << fd << " and events is " << ee.events << std::endl;
             ee.data.fd = fd;
             // 判断是否加入成功
-            if (epoll_ctl(epfd_, op, fd, &ee) == -1) return -1;
-            if (fd > max_fd_) max_fd_ = fd;
+            if (epoll_ctl(epfd_, op, fd, &ee) == -1)
+                return -1;
+            if (fd > max_fd_)
+                max_fd_ = fd;
             fdEvent[fd].events |= events;
             return 0;
         }
@@ -55,13 +63,18 @@ namespace net
 
             ee.events = 0;
 
-            if (mask & Event::Read) ee.events |= EPOLLIN;
-            if (mask & Event::Write) ee.events |= EPOLLOUT;
+            if (mask & Event::Read)
+                ee.events |= EPOLLIN;
+            if (mask & Event::Write)
+                ee.events |= EPOLLOUT;
 
             ee.data.fd = fd;
-            if (mask != Event::None) {
+            if (mask != Event::None)
+            {
                 epoll_ctl(epfd_, EPOLL_CTL_MOD, fd, &ee);
-            }else {
+            }
+            else
+            {
                 epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, &ee);
             }
         }
@@ -71,15 +84,19 @@ namespace net
             int retval, numevents = 0;
 
             retval = epoll_wait(epfd_, eEvents, MAX_NUMBER_OF_FD, timeout_ms);
-            if (retval > 0) {
+            if (retval > 0)
+            {
 
                 numevents = retval;
-                for (int i = 0; i < numevents; i++) {
+                for (int i = 0; i < numevents; i++)
+                {
                     int mask = Event::None;
                     epoll_event *e = &eEvents[i];
 
-                    if (e->events & EPOLLIN) mask |= Event::Read;
-                    if (e->events & EPOLLOUT) mask |= Event::Write;
+                    if (e->events & EPOLLIN)
+                        mask |= Event::Read;
+                    if (e->events & EPOLLOUT)
+                        mask |= Event::Write;
                     fired_fds_.EmplaceBack((int32_t)e->data.fd, mask);
                 }
             }
@@ -108,7 +125,7 @@ namespace net
             return result;
         }
 
-        private:
+    private:
         int epfd_{-1};
         int max_fd_{-1};
         struct FiredEvent fdEvent[MAX_NUMBER_OF_FD];
@@ -116,4 +133,4 @@ namespace net
         // epoll_wait() 返回后触发了 io 事件的 fd 队列
         base::RingQueue<FiredEvent, MAX_NUMBER_OF_FD> fired_fds_;
     };
-}
+} // namespace net

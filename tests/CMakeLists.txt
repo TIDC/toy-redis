@@ -13,6 +13,7 @@ add_compile_options(
     -Wall
     -Wno-unused-function
 )
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fno-sanitize-recover")
 
 ## SDS 单元测试
 #create_test(
