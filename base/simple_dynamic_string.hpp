@@ -286,21 +286,18 @@ namespace base
             length_ = init_length;
             free_ = 0;
 
-            if (length_ > 0)
-            {
-                // 分配的内存比指定字符串多一个字节，存放 '\n'
-                buffer_ = std::make_unique<char[]>(length_ + 1);
-                assert(buffer_ != nullptr && "Out Of Memory");
+            // 分配的内存比指定字符串多一个字节，存放 '\n'
+            buffer_ = std::make_unique<char[]>(length_ + 1);
+            assert(buffer_ != nullptr && "Out Of Memory");
 
-                if (init != nullptr)
-                {
-                    std::copy_n(init, length_, buffer_.get());
-                    buffer_[length_] = '\0';
-                }
-                else
-                {
-                    std::fill_n(buffer_.get(), length_, '\0');
-                }
+            if (init != nullptr)
+            {
+                std::copy_n(init, length_, buffer_.get());
+                buffer_[length_] = '\0';
+            }
+            else
+            {
+                std::fill_n(buffer_.get(), length_, '\0');
             }
         }
 

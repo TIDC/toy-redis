@@ -79,6 +79,7 @@ namespace tr
 
         void processInputBuffer()
         {
+            std::cout << "queryBuf is " << queryBuf.Data() << std::endl;
             while (queryBuf.Length())
             {
                 // client 处于某种状态时，立即结束
@@ -154,7 +155,7 @@ namespace tr
     private:
         int fd_;
         base::RedisDB *db_;
-        base::SimpleDynamicString queryBuf{"nothing"};
+        base::SimpleDynamicString queryBuf{nullptr};
         base::Log client_logger;
         int flag_{client_flag::INITIAL};
         int request_type_{0};

@@ -25,9 +25,10 @@ TEST(server, addClient)
     assert(result >= 0 && "Error: connect");
     char buf[1024];
     buf[0] = '*';
-    auto send_length = send(clientId, buf, 1, 0);
+    buf[1] = 't';
+    auto send_length = send(clientId, buf, 2, 0);
     std::cout << "send is " << send_length << std::endl;
     assert(send_length > 0 && "Error: send");
-    std::this_thread::sleep_for(std::chrono::milliseconds(200000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
     close(clientId);
 }
