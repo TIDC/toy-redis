@@ -155,7 +155,7 @@ namespace tr
     private:
         int fd_;
         base::RedisDB *db_;
-        base::SimpleDynamicString queryBuf{nullptr};
+        base::SimpleDynamicString queryBuf{};
         base::Log client_logger;
         int flag_{client_flag::INITIAL};
         int request_type_{0};

@@ -104,8 +104,12 @@ namespace base
             // 简单两倍扩容
             auto new_length = (Length() + append_length) << 1;
             auto new_buffer = std::make_unique<char[]>(new_length + 1);
-            assert(buffer_ != nullptr && "Out Of Memory");
-            std::copy_n(buffer_.get(), Length(), new_buffer.get());
+            // assert(buffer_ != nullptr && "Out Of Memory");
+            if (buffer_ != nullptr)
+            {
+                std::copy_n(buffer_.get(), Length(), new_buffer.get());
+            }
+
             new_buffer[Length()] = '\0';
 
             std::swap(buffer_, new_buffer);
