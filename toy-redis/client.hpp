@@ -2,15 +2,23 @@
 // Created by innoyiya on 2022/7/30.
 //
 #pragma once
+#include "base/dictionary.hpp"
 #include "base/log.hpp"
 #include "base/redis_database.hpp"
 #include "base/simple_dynamic_string.hpp"
 #include "identifier.h"
 #include "net/constants.hpp"
+#include "net/poller_types.hpp"
+#include <functional>
+#include <memory>
+#include <string>
 #include <unistd.h>
+#include <vector>
 
 namespace tr
 {
+    using EventHandler =
+        std::function<void(int32_t, int32_t, const std::any &)>;
     class RedisClient
     {
     public:
@@ -132,9 +140,13 @@ namespace tr
             }
         }
 
+        // 负责解析query中的数据，转化为命令形式存放
         ErrorCode ProcessInlineBuffer()
         {
-            return ErrorCode::REDIS_ERR;
+            auto result = queryBuf.Split(" ");
+            argc = result.size();
+            argv.swap(result);
+            return ErrorCode::REDIS_OK;
         }
 
         ErrorCode ProcessMultiBulkBuffer()
@@ -148,17 +160,79 @@ namespace tr
 
         ErrorCode ProcessCommand()
         {
-
+            if (argc >= 2)
+            {
+                if ("get" == argv[0])
+                {
+                    client_logger.Info("get key");
+                    auto find_result = dict_->Find(argv[1]);
+                    if (find_result.has_value())
+                    {
+                        // fixme: 没有判断查询到的是否有旧数据
+                        result_.Append(find_result->get().second);
+                        addEvent_(fd_, net::Write, [&](int32_t, int32_t, const std::any &) {
+                            SendReplyToClient();
+                        });
+                    }
+                }
+                else if ("set" == argv[0] && argc == 3)
+                {
+                    client_logger.Info("set key");
+                    dict_->Add(argv[1], argv[2]);
+                }
+                return ErrorCode::REDIS_OK;
+            }
             return ErrorCode::REDIS_ERR;
+        }
+
+        void SetDict(std::shared_ptr<base::Dictionary<std::string, std::string>> dict)
+        {
+            dict_ = dict;
+        }
+
+        void SendReplyToClient()
+        {
+            if (result_.Length() > 0)
+            {
+                client_logger.Info("Write data to client");
+                auto writeLength = write(fd_, result_.Data(), result_.Length());
+                if (writeLength <= 0)
+                {
+                    client_logger.Debug("write to client: %s", strerror(errno));
+                    return;
+                }
+                result_.Clean();
+            }
+            if (result_.Length() == 0)
+            {
+                deleteEvent_(fd_, net::Event::Write);
+            }
+        }
+
+        void Free()
+        {
+            deleteEvent_(fd_, net::Event::Read);
+            deleteEvent_(fd_, net::Event::Write);
+        }
+
+        void SetOperateEventFunction(std::function<void(int32_t, net::Event, EventHandler)> add_fun, std::function<void(int32_t, net::Event)> del_fun)
+        {
+            addEvent_ = add_fun;
+            deleteEvent_ = del_fun;
         }
 
     private:
         int fd_;
-        base::RedisDB *db_;
+        // base::RedisDB *db_;
+        std::shared_ptr<base::Dictionary<std::string, std::string>> dict_;
         base::SimpleDynamicString queryBuf{};
         base::Log client_logger;
         int flag_{client_flag::INITIAL};
         int request_type_{0};
         int argc{0};
+        std::vector<std::string> argv;
+        base::SimpleDynamicString result_{nullptr};
+        std::function<void(int32_t, net::Event)> deleteEvent_;
+        std::function<void(int32_t, net::Event, EventHandler)> addEvent_;
     };
 } // namespace tr

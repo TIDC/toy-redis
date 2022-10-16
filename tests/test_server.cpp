@@ -3,6 +3,8 @@
 //
 #include "toy-redis/server.hpp"
 #include "gtest/gtest.h"
+#include <iostream>
+#include <sys/socket.h>
 
 TEST(server, addClient)
 {
@@ -24,11 +26,16 @@ TEST(server, addClient)
     std::cout << "result is " << result << std::endl;
     assert(result >= 0 && "Error: connect");
     char buf[1024];
-    buf[0] = '*';
-    buf[1] = 't';
-    auto send_length = send(clientId, buf, 2, 0);
+    // buf[0] = '*';
+    // buf[1] = 't';
+    auto commond = "set k1 v1";
+    auto send_length = send(clientId, commond, 9, 0);
     std::cout << "send is " << send_length << std::endl;
     assert(send_length > 0 && "Error: send");
+    commond = "get k1";
+    send_length = send(clientId, commond, 6, 0);
+    auto recv_length = recv(clientId, buf, 1024, 0);
+    std::cout << "recv_length is " << recv_length << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(10000));
     close(clientId);
 }

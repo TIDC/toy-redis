@@ -2,6 +2,7 @@
 
 #include "base/checker.hpp"
 #include "base/errno_to_string.hpp"
+#include "base/log.hpp"
 #include "base/marco.hpp"
 #include "base/time_helper.hpp"
 #include "ipc/pipe.hpp"
@@ -119,6 +120,7 @@ namespace net
         /// 移除事件监听
         void DeleteEventListener(int32_t fd, Event event)
         {
+            io_service_logger.Info("add fd is %d and event is %d", fd, event);
             CheckCrossThread();
             assert(fd < MAX_NUMBER_OF_FD);
 
@@ -408,6 +410,7 @@ namespace net
         /// 用于提前唤醒 poller 的管道
         ipc::SimplePipeline notify_pipe_;
         bool stop_{false};
+        base::Log io_service_logger;
     };
 
 } // namespace net

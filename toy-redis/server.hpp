@@ -1,15 +1,21 @@
 #pragma once
 
+#include "base/dictionary.hpp"
 #include "base/log.hpp"
 #include "base/marco.hpp"
+#include "base/simple_dynamic_string.hpp"
 #include "net/anet.hpp"
 #include "net/default_poller.hpp"
 #include "net/io_service.hpp"
+#include "net/poller_types.hpp"
+#include <cstdint>
+#include <memory>
 #include <string_view>
 
 namespace tr
 {
-
+    using EventHandler =
+        std::function<void(int32_t, int32_t, const std::any &)>;
     /// 服务端实现
     class ToyRedisServer
     {
@@ -39,6 +45,18 @@ namespace tr
             if (ipfd > 0)
             {
                 auto addClient = [&](std::shared_ptr<RedisClient> ptr) {
+                    ptr->SetDict(dict_);
+                    // ptr->SetOperateEventFunction([&](int32_t fd, net::Event event, EventHandler handler) {
+                    //     io_service_.AddEventListener(fd, event, handler)},
+                    //                                                                                           [&](int32_t fd, net::Event event) {
+                    //     io_service_.DeleteEventListener(fd, event) } });
+                    ptr->SetOperateEventFunction(
+                        [&](int32_t fd, net::Event event, EventHandler handler) {
+                            io_service_.AddEventListener(fd, event, handler);
+                        },
+                        [&](int32_t fd, net::Event event) {
+                            io_service_.DeleteEventListener(fd, event);
+                        });
                     list.emplace_back(ptr);
                     std::cout << "add client" << std::endl;
                     // todo 客户端有读事件时的处理
@@ -115,6 +133,7 @@ namespace tr
         int ipfd;
         base::Log server_logger;
         std::vector<std::shared_ptr<RedisClient>> list;
+        std::shared_ptr<base::Dictionary<std::string, std::string>> dict_{std::make_shared<base::Dictionary<std::string, std::string>>()};
     };
 
 } // namespace tr

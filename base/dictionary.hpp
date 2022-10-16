@@ -20,6 +20,7 @@ namespace base
     /// @brief 简易哈希表
     /// 哈希冲突用简单的拉链法解决
     /// TODO: 实现后续 redis 版本的渐进式扩容机制
+    /// TODO: 实现dict-table, dict-entry
     template <
         typename KeyType = int,
         typename ValueType = int,

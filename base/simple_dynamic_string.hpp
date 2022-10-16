@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -233,10 +234,10 @@ namespace base
         }
 
         /// 分割
-        std::vector<std::string_view> Split(std::string_view separator) const
+        std::vector<std::string> Split(std::string_view separator) const
         {
-            auto data = std::string_view(buffer_.get());
-            std::vector<std::string_view> result;
+            auto data = std::string(buffer_.get());
+            std::vector<std::string> result;
 
             if (data.find(separator) == std::string_view::npos)
             {
@@ -279,6 +280,13 @@ namespace base
             // 调用者保证数据不越界
             auto data = buffer_.get();
             return data[index];
+        }
+
+        void Clean() noexcept
+        {
+            length_ = 0;
+            free_ = 0;
+            buffer_ = nullptr;
         }
 
     private:
