@@ -55,7 +55,9 @@ namespace net
         struct FileEvent
         {
             int32_t mask_ = Event::None;
-            EventHandler handler_;
+            // 读操作和写操作
+            EventHandler read_handler_;
+            EventHandler write_handler_;
             std::any client_data_;
         };
 
@@ -101,6 +103,7 @@ namespace net
         {
             CheckCrossThread();
             assert(fd < MAX_NUMBER_OF_FD);
+            assert(event != Event::None);
 
             auto result = poller_.AddEvent(fd, event);
             if (result != 0)
@@ -110,7 +113,11 @@ namespace net
 
             auto &e = events_[fd];
             e.mask_ |= event;
-            e.handler_ = std::move(handler);
+            if (event == Event::Read) {
+                e.read_handler_ = std::move(handler);
+            }else if (event == Event::Write) {
+                e.write_handler_ = std::move(handler);
+            }
             e.client_data_ = std::move(client_data);
 
             return true;
@@ -120,12 +127,12 @@ namespace net
         /// 移除事件监听
         void DeleteEventListener(int32_t fd, Event event)
         {
-            io_service_logger.Info("add fd is %d and event is %d", fd, event);
+            io_service_logger.Info("the id to delete is %d and event is %d", fd, event);
             CheckCrossThread();
             assert(fd < MAX_NUMBER_OF_FD);
 
             poller_.DeleteEvent(fd, event);
-            auto result = poller_.AddEvent(fd, event);
+            auto result = poller_.DeleteEvent(fd, event);
             if (result != 0)
             {
                 return;
@@ -135,7 +142,8 @@ namespace net
             e.mask_ &= ~event;
             if (e.mask_ == Event::None)
             {
-                e.handler_ = nullptr;
+                e.read_handler_ = nullptr;
+                e.write_handler_ = nullptr;
                 e.client_data_.reset();
             }
         }
@@ -270,11 +278,22 @@ namespace net
                     << "poller 返回的 fd 值超出最大数量限制";
 
                 FileEvent &ev = events_[fired_event.fd];
-                ASSERT_MSG(ev.mask_ != Event::None);
-                ASSERT_MSG(ev.handler_ != nullptr);
+                // ASSERT_MSG(ev.mask_ != Event::None);
+                // ASSERT_MSG(ev.handler_ != nullptr);
 
-                ev.handler_(fired_event.fd, fired_event.events,
-                            ev.client_data_);
+                // poller_.AddEvent(int32_t,  1)
+                // if (ev.mask_ & ) 
+                auto fd_event = poller_.GetFdEventByFd(fired_event.fd);
+                auto mask = fd_event.events;
+                if (fired_event.events & mask & Event::Read) {
+                    ev.read_handler_(fired_event.fd, fired_event.events, ev.client_data_);
+                }
+                if (fired_event.events & mask & Event::Write) {
+                    ev.write_handler_(fired_event.fd, fired_event.events, ev.client_data_);
+                }
+                
+                // ev.handler_(fired_event.fd, fired_event.events,
+                //             ev.client_data_);
             };
             poller_.ConsumeAll(consumer);
             return 0;

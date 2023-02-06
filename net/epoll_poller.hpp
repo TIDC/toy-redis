@@ -52,12 +52,14 @@ namespace net
                 return -1;
             if (fd > max_fd_)
                 max_fd_ = fd;
-            fdEvent[fd].events |= events;
+            fdEvent[fd].events = events;
             return 0;
         }
 
-        void DeleteEvent(int32_t fd, int32_t events)
+        int32_t DeleteEvent(int32_t fd, int32_t events)
         {
+            if (epfd_ == -1)
+                return -1;
             epoll_event ee;
             int mask = fdEvent[fd].events & (~events);
 
@@ -77,6 +79,8 @@ namespace net
             {
                 epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, &ee);
             }
+            fdEvent[fd].events = mask;
+            return 0;
         }
 
         int32_t Poll(uint64_t timeout_ms)
@@ -97,10 +101,16 @@ namespace net
                         mask |= Event::Read;
                     if (e->events & EPOLLOUT)
                         mask |= Event::Write;
+                    // if (fired_fds_.)
                     fired_fds_.EmplaceBack((int32_t)e->data.fd, mask);
                 }
             }
             return numevents;
+        }
+
+        const struct FiredEvent & GetFdEventByFd(int32_t fd){
+            // fixme: 入参校验
+            return fdEvent[fd];
         }
 
         template <std::invocable<FiredEvent> Consumer>

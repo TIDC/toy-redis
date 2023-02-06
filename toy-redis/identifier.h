@@ -6,7 +6,8 @@
 namespace tr {
     enum ErrorCode{
         REDIS_OK,
-        REDIS_ERR
+        REDIS_ERR,
+        REDIS_CLOSE,
     };
 
     enum RequestType{

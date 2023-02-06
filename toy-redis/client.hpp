@@ -71,7 +71,9 @@ namespace tr
             else if (lengthOfRead == 0)
             {
                 client_logger.Debug("Client closed connection");
-                return ErrorCode::REDIS_ERR;
+                close(fd_);
+                Free();
+                return ErrorCode::REDIS_CLOSE;
             }
             else if (lengthOfRead > 0)
             {
@@ -156,6 +158,7 @@ namespace tr
 
         void ResetClient()
         {
+            queryBuf.Clean();
         }
 
         ErrorCode ProcessCommand()
@@ -178,7 +181,12 @@ namespace tr
                 else if ("set" == argv[0] && argc == 3)
                 {
                     client_logger.Info("set key");
+                    // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
                     dict_->Add(argv[1], argv[2]);
+                    result_.Append("ok");
+                    addEvent_(fd_, net::Write, [&](int32_t, int32_t, const std::any &) {
+                            SendReplyToClient();
+                        });
                 }
                 return ErrorCode::REDIS_OK;
             }
@@ -192,20 +200,24 @@ namespace tr
 
         void SendReplyToClient()
         {
+            // fixme: 需要一次性响应，多次响应需要改成while形式，循环写完后需要删除写事件
             if (result_.Length() > 0)
             {
                 client_logger.Info("Write data to client");
                 auto writeLength = write(fd_, result_.Data(), result_.Length());
+                // 失败与否都清空
+                result_.Clean();
                 if (writeLength <= 0)
                 {
                     client_logger.Debug("write to client: %s", strerror(errno));
                     return;
                 }
-                result_.Clean();
+                
             }
             if (result_.Length() == 0)
             {
                 deleteEvent_(fd_, net::Event::Write);
+                // 使用Keepalive，响应之后不用关闭链接。在读事件发生后，再处理socket的关闭
             }
         }
 

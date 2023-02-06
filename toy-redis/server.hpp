@@ -8,9 +8,14 @@
 #include "net/default_poller.hpp"
 #include "net/io_service.hpp"
 #include "net/poller_types.hpp"
+#include "toy-redis/identifier.h"
+#include <cassert>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string_view>
+#include <thread>
+#include <vector>
 
 namespace tr
 {
@@ -42,7 +47,7 @@ namespace tr
                 BeforeSleep(ios);
             };
 
-            if (ipfd > 0)
+            if (ipfd_ > 0)
             {
                 auto addClient = [&](std::shared_ptr<RedisClient> ptr) {
                     ptr->SetDict(dict_);
@@ -57,21 +62,33 @@ namespace tr
                         [&](int32_t fd, net::Event event) {
                             io_service_.DeleteEventListener(fd, event);
                         });
-                    list.emplace_back(ptr);
+                    list_.emplace_back(ptr);
                     std::cout << "add client" << std::endl;
                     // todo 客户端有读事件时的处理
                     auto clientHandler = [&](auto fd, auto event, const std::any &client_data) {
-                        assert(fd == ptr.get()->GetFd() && "fd不一致");
-                        ptr.get()->readQueryFromClient();
+                        // assert(fd == ptr.get()->GetFd() && "fd不一致");
+                        std::vector<std::shared_ptr<RedisClient>>::iterator it;
+                        std::shared_ptr<RedisClient> rc;
+                        for (it = list_.begin(); it < list_.end(); it++) {
+                            if (it->get()->GetFd() == fd) {
+                                break;
+                            }
+                        }
+                        assert(it != list_.end() && "找不到客户端");
+                        std::cout << "read even have come" << std::endl;
+                        auto code = it->get()->readQueryFromClient();
+                        if (code == ErrorCode::REDIS_CLOSE) {
+                            list_.erase(it);
+                        }
                     };
                     auto fd = ptr.get()->GetFd();
                     auto result = io_service_.AddEventListener(fd, net::Read, clientHandler);
                     assert(result && "add even fail");
                 };
                 auto handle = [&](auto fd, auto event, const std::any &client_data) {
-                    netTool.acceptTcpHandler(fd, addClient);
+                    netTool_.acceptTcpHandler(fd, addClient);
                 };
-                io_service_.AddEventListener(ipfd, net::Read, handle);
+                io_service_.AddEventListener(ipfd_, net::Read, handle);
             }
             io_service_.SetBeforeSleepCallback(before_sleep);
             io_service_.Run();
@@ -93,15 +110,15 @@ namespace tr
         /// 初始化服务器
         void InitServer()
         {
-            server_logger = base::Log{};
-            server_logger.AddLogFd(STDOUT_FILENO);
+            server_logger_ = base::Log{};
+            server_logger_.AddLogFd(STDOUT_FILENO);
             if (config_.port != 0)
             {
                 char netErr[net::ANET_ERR_LEN];
-                ipfd = netTool.anetTcpServer(netErr, config_.port, config_.bindAddr);
-                if (ipfd == net::ANET_ERR)
+                ipfd_ = netTool_.anetTcpServer(netErr, config_.port, config_.bindAddr);
+                if (ipfd_ == net::ANET_ERR)
                 {
-                    server_logger.Error(std::string_view(netErr));
+                    server_logger_.Error(std::string_view(netErr));
                     exit(1);
                 }
             }
@@ -115,24 +132,24 @@ namespace tr
         void RemoveClient(int fd)
         {
             auto i = 0;
-            for (; i < list.size(); i++)
+            for (; i < list_.size(); i++)
             {
-                if (list.at(i).get()->GetFd() == fd)
+                if (list_.at(i).get()->GetFd() == fd)
                 {
                     break;
                 }
             }
             // 删除第 i 个元素，需-1
-            list.erase(list.begin() + i - 1);
+            list_.erase(list_.begin() + i - 1);
         }
 
     private:
         ServerConfig config_;
         IOServiceType io_service_;
-        net::RedisNet netTool;
-        int ipfd;
-        base::Log server_logger;
-        std::vector<std::shared_ptr<RedisClient>> list;
+        net::RedisNet netTool_;
+        int ipfd_;
+        base::Log server_logger_;
+        std::vector<std::shared_ptr<RedisClient>> list_;
         std::shared_ptr<base::Dictionary<std::string, std::string>> dict_{std::make_shared<base::Dictionary<std::string, std::string>>()};
     };
 
